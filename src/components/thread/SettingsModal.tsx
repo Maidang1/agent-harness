@@ -5,9 +5,41 @@ import {
 } from 'react'
 import {
   Brain,
-  Key,
-  X,
-} from '@phosphor-icons/react'
+  Info,
+  KeyRound,
+  LoaderCircle,
+} from 'lucide-react'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { type BookAgentClientConfig } from '../../client-config'
 import {
   createClearedUserMemory,
@@ -115,81 +147,77 @@ export const SettingsModal = ({
   }
 
   return (
-    <div
-      className="settings-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="设置"
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose()
+        }
+      }}
     >
-      <div className="settings-modal" onClick={(event) => event.stopPropagation()}>
-        <button
-          type="button"
-          aria-label="关闭设置"
-          title="关闭"
-          onClick={onClose}
-          className="settings-close"
-        >
-          <X size={18} />
-        </button>
+      <DialogContent className="max-h-[90dvh] gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
+          <DialogHeader className="border-b p-5 pr-14">
+            <DialogTitle>设置</DialogTitle>
+            <DialogDescription>
+              配置模型访问和本地阅读记忆。
+            </DialogDescription>
+          </DialogHeader>
 
-        <aside className="settings-nav">
-          <p className="settings-nav-title">设置</p>
-          <button
-            type="button"
-            className={`settings-nav-item ${
-              activeTab === 'api' ? 'settings-nav-item-active' : ''
-            }`}
-            onClick={() => setActiveTab('api')}
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as SettingsTab)}
+            className="min-h-0 flex-1 gap-0 md:grid md:grid-cols-[12rem_minmax(0,1fr)]"
           >
-            <Key size={16} weight="bold" />
-            <span>API Key</span>
-          </button>
-          <button
-            type="button"
-            className={`settings-nav-item ${
-              activeTab === 'memory' ? 'settings-nav-item-active' : ''
-            }`}
-            onClick={() => setActiveTab('memory')}
-          >
-            <Brain size={16} weight="bold" />
-            <span>记忆</span>
-          </button>
-        </aside>
+            <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b bg-muted/50 p-3 md:h-full md:w-auto md:flex-col md:items-stretch md:border-b-0 md:border-r">
+              <TabsTrigger value="api" className="h-9 flex-none justify-start">
+                <KeyRound data-icon="inline-start" />
+                API Key
+              </TabsTrigger>
+              <TabsTrigger value="memory" className="h-9 flex-none justify-start">
+                <Brain data-icon="inline-start" />
+                记忆
+              </TabsTrigger>
+            </TabsList>
 
-        <form className="settings-content" onSubmit={handleSubmit}>
-          {activeTab === 'api' ? (
-            <ApiSettings
-              apiKey={apiKey}
-              wechatApiKey={wechatApiKey}
-              onApiKeyChange={handleApiKeyChange}
-              onWechatApiKeyChange={handleWechatApiKeyChange}
-            />
-          ) : (
-            <MemorySettingsPanel
-              memoryEnabled={memoryEnabled}
-              autoGenerateFromPrompt={autoGenerateFromPrompt}
-              profileSummary={profileSummary}
-              memoryStatus={memoryStatus}
-              isSaving={isSaving}
-              onMemoryEnabledChange={setMemoryEnabled}
-              onAutoGenerateFromPromptChange={setAutoGenerateFromPrompt}
-              onProfileSummaryChange={setProfileSummary}
-              onClearMemory={handleClearMemory}
-            />
-          )}
+            <TabsContent value="api" className="m-0 flex flex-col gap-5 p-5">
+              <ApiSettings
+                apiKey={apiKey}
+                wechatApiKey={wechatApiKey}
+                onApiKeyChange={handleApiKeyChange}
+                onWechatApiKeyChange={handleWechatApiKeyChange}
+              />
+            </TabsContent>
 
-          <div className="settings-actions">
-            <button type="button" onClick={onClose} className="secondary-button">
+            <TabsContent value="memory" className="m-0 flex flex-col gap-5 p-5">
+              <MemorySettingsPanel
+                memoryEnabled={memoryEnabled}
+                autoGenerateFromPrompt={autoGenerateFromPrompt}
+                profileSummary={profileSummary}
+                memoryStatus={memoryStatus}
+                isSaving={isSaving}
+                onMemoryEnabledChange={setMemoryEnabled}
+                onAutoGenerateFromPromptChange={setAutoGenerateFromPrompt}
+                onProfileSummaryChange={setProfileSummary}
+                onClearMemory={handleClearMemory}
+              />
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="m-0 rounded-none border-t bg-muted/50 p-4">
+            <Button type="button" variant="outline" onClick={onClose}>
               取消
-            </button>
-            <button type="submit" className="primary-button" disabled={isSaving}>
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? (
+                <LoaderCircle className="animate-spin" data-icon="inline-start" />
+              ) : null}
               保存
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -206,59 +234,41 @@ const ApiSettings = ({
   onApiKeyChange,
   onWechatApiKeyChange,
 }: ApiSettingsProps) => (
-  <>
-    <header className="settings-content-header">
-      <h2 className="settings-content-title">API Key</h2>
-      <p className="settings-content-subtitle">
-        配置 OpenRouter 和微信读书 API Key。
-      </p>
-    </header>
+  <FieldGroup>
+    <Field>
+      <FieldLabel htmlFor="openrouter-api-key">OpenRouter API Key</FieldLabel>
+      <Input
+        id="openrouter-api-key"
+        type="password"
+        value={apiKey}
+        onChange={onApiKeyChange}
+        autoComplete="off"
+        spellCheck={false}
+        placeholder="sk-or-..."
+        autoFocus
+      />
+      <FieldDescription>密钥仅保存在本地。</FieldDescription>
+    </Field>
 
-    <section className="settings-section">
-      <label className="config-label">
-        OpenRouter API Key
-        <input
-          type="password"
-          value={apiKey}
-          onChange={onApiKeyChange}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="sk-or-..."
-          className="config-input"
-          autoFocus
-        />
-      </label>
-      <p className="settings-hint">
-        密钥仅保存在本地。
-      </p>
-    </section>
-
-    <section className="settings-section">
-      <label className="config-label">
-        微信读书 API Key
-        <input
-          type="password"
-          value={wechatApiKey}
-          onChange={onWechatApiKeyChange}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="输入微信读书 API Key"
-          className="config-input"
-        />
-      </label>
-      <p className="settings-hint">
+    <Field>
+      <FieldLabel htmlFor="wechat-api-key">微信读书 API Key</FieldLabel>
+      <Input
+        id="wechat-api-key"
+        type="password"
+        value={wechatApiKey}
+        onChange={onWechatApiKeyChange}
+        autoComplete="off"
+        spellCheck={false}
+        placeholder="输入微信读书 API Key"
+      />
+      <FieldDescription>
         获取链接：
-        <a
-          href="https://weread.qq.com/r/weread-skills"
-          target="_blank"
-          rel="noreferrer"
-          className="settings-link"
-        >
+        <a href="https://weread.qq.com/r/weread-skills" target="_blank" rel="noreferrer">
           https://weread.qq.com/r/weread-skills
         </a>
-      </p>
-    </section>
-  </>
+      </FieldDescription>
+    </Field>
+  </FieldGroup>
 )
 
 type MemorySettingsPanelProps = {
@@ -284,67 +294,65 @@ const MemorySettingsPanel = ({
   onProfileSummaryChange,
   onClearMemory,
 }: MemorySettingsPanelProps) => (
-  <>
-    <header className="settings-content-header">
-      <h2 className="settings-content-title">记忆</h2>
-    </header>
-
-    <section className="settings-section memory-simple-controls">
-      <ToggleField
-        label="启用记忆"
+  <FieldGroup>
+    <Field orientation="horizontal" className="rounded-lg border p-3">
+      <Switch
+        id="memory-enabled"
         checked={memoryEnabled}
-        onChange={onMemoryEnabledChange}
+        onCheckedChange={onMemoryEnabledChange}
       />
-      <ToggleField
-        label="自动学习"
+      <FieldContent>
+        <FieldLabel htmlFor="memory-enabled">启用记忆</FieldLabel>
+        <FieldDescription>推荐时使用本地阅读偏好。</FieldDescription>
+      </FieldContent>
+    </Field>
+
+    <Field orientation="horizontal" className="rounded-lg border p-3">
+      <Switch
+        id="memory-auto-generate"
         checked={autoGenerateFromPrompt}
-        onChange={onAutoGenerateFromPromptChange}
+        onCheckedChange={onAutoGenerateFromPromptChange}
       />
-    </section>
+      <FieldContent>
+        <FieldLabel htmlFor="memory-auto-generate">自动学习</FieldLabel>
+        <FieldDescription>根据提问更新阅读画像。</FieldDescription>
+      </FieldContent>
+    </Field>
 
-    <section className="settings-section">
-      <label className="config-label">
-        记忆摘要
-        <textarea
-          value={profileSummary}
-          onChange={(event) => onProfileSummaryChange(event.target.value)}
-          className="config-input config-textarea memory-summary-textarea"
-          rows={7}
-        />
-      </label>
-    </section>
+    <Field>
+      <FieldLabel htmlFor="memory-summary">记忆摘要</FieldLabel>
+      <Textarea
+        id="memory-summary"
+        value={profileSummary}
+        onChange={(event) => onProfileSummaryChange(event.target.value)}
+        rows={7}
+        className="min-h-44"
+      />
+    </Field>
 
-    <section className="settings-section">
-      <div className="settings-inline-actions">
-        <button
-          type="button"
-          className="secondary-button danger-button"
-          disabled={isSaving}
-          onClick={onClearMemory}
-        >
-          清空记忆
-        </button>
-      </div>
-      {memoryStatus ? <p className="settings-hint">{memoryStatus}</p> : null}
-    </section>
-  </>
-)
+    <Field orientation="horizontal" className="items-start justify-between rounded-lg border p-3">
+      <FieldContent>
+        <FieldTitle>清空记忆</FieldTitle>
+        <FieldDescription>清除本地画像和偏好。</FieldDescription>
+      </FieldContent>
+      <Button
+        type="button"
+        variant="destructive"
+        disabled={isSaving}
+        onClick={onClearMemory}
+      >
+        清空记忆
+      </Button>
+    </Field>
 
-type ToggleFieldProps = {
-  label: string
-  checked: boolean
-  onChange: (value: boolean) => void
-}
-
-const ToggleField = ({ label, checked, onChange }: ToggleFieldProps) => (
-  <label className="settings-toggle">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={(event) => onChange(event.target.checked)}
-    />
-    <span>{label}</span>
-  </label>
+    {memoryStatus ? (
+      <Alert>
+        <Info />
+        <AlertTitle>记忆状态</AlertTitle>
+        <AlertDescription>{memoryStatus}</AlertDescription>
+      </Alert>
+    ) : null}
+  </FieldGroup>
 )
 
 const formatError = (error: unknown) =>

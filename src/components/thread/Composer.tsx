@@ -3,59 +3,93 @@ import {
   ComposerPrimitive,
   useAuiState,
 } from '@assistant-ui/react'
-import { ArrowUp, CircleNotch, Plus } from '@phosphor-icons/react'
+import {
+  ArrowUp,
+  LoaderCircle,
+  Plus,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from '@/components/ui/input-group'
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@/components/ui/toggle-group'
 
 const preferenceChips = ['低压力', '短篇', '睡前', '治愈']
 
 export const Composer = () => {
-  const [selectedPreferences, setSelectedPreferences] = useState(['低压力', '睡前'])
-
-  const togglePreference = (preference: string) => {
-    setSelectedPreferences((current) =>
-      current.includes(preference)
-        ? current.filter((item) => item !== preference)
-        : [...current, preference],
-    )
-  }
+  const [selectedPreferences, setSelectedPreferences] = useState([
+    '低压力',
+    '睡前',
+  ])
 
   return (
-    <div className="composer-shell">
-      <div className="preference-strip" aria-label="阅读偏好">
-        {preferenceChips.map((preference) => (
-          <button
-            key={preference}
-            type="button"
-            className={`preference-chip ${
-              selectedPreferences.includes(preference) ? 'preference-chip-active' : ''
-            }`}
-            onClick={() => togglePreference(preference)}
-          >
-            {preference}
-          </button>
-        ))}
-        <button type="button" className="preference-add">
-          <Plus size={16} weight="bold" />
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2" aria-label="阅读偏好">
+        <ToggleGroup
+          type="multiple"
+          variant="outline"
+          size="sm"
+          spacing={1}
+          value={selectedPreferences}
+          onValueChange={setSelectedPreferences}
+          className="flex-wrap"
+        >
+          {preferenceChips.map((preference) => (
+            <ToggleGroupItem key={preference} value={preference}>
+              {preference}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <Button type="button" variant="ghost" size="sm">
+          <Plus data-icon="inline-start" />
           添加偏好
-        </button>
+        </Button>
       </div>
 
-      <ComposerPrimitive.Root className="composer-root">
-        <div className="composer-main-row">
-          <button type="button" className="composer-tool" aria-label="添加内容">
-            <Plus size={21} weight="bold" />
-          </button>
+      <ComposerPrimitive.Root className="flex flex-col gap-2">
+        <InputGroup className="h-auto flex-col items-stretch bg-card shadow-lg">
           <ComposerPrimitive.Input
+            asChild
             id="book-agent-composer"
             name="message"
             placeholder="继续提问，或输入 / 选择功能"
-            className="composer-input"
             autoFocus
-          />
-          <ComposerPrimitive.Send className="composer-send" aria-label="发送消息">
-            <SendIcon />
-          </ComposerPrimitive.Send>
-        </div>
-        <p className="composer-hint">按 Enter 发送，Shift + Enter 换行</p>
+          >
+            <InputGroupTextarea className="min-h-20 max-h-52 px-3 py-3 text-sm" />
+          </ComposerPrimitive.Input>
+          <InputGroupAddon align="block-end" className="border-t">
+            <div className="flex w-full items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                按 Enter 发送，Shift + Enter 换行
+              </p>
+              <div className="flex items-center gap-1">
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="添加内容"
+                >
+                  <Plus />
+                </InputGroupButton>
+                <ComposerPrimitive.Send asChild>
+                  <InputGroupButton
+                    variant="default"
+                    size="icon-sm"
+                    aria-label="发送消息"
+                  >
+                    <SendIcon />
+                  </InputGroupButton>
+                </ComposerPrimitive.Send>
+              </div>
+            </div>
+          </InputGroupAddon>
+        </InputGroup>
       </ComposerPrimitive.Root>
     </div>
   )
@@ -65,8 +99,8 @@ const SendIcon = () => {
   const isRunning = useAuiState((s) => s.thread.isRunning)
 
   return isRunning ? (
-    <CircleNotch size={20} className="animate-spin" />
+    <LoaderCircle className="animate-spin" />
   ) : (
-    <ArrowUp size={20} weight="bold" />
+    <ArrowUp />
   )
 }

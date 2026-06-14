@@ -1,11 +1,26 @@
-import { type ReactNode } from 'react'
 import {
-  GearSix,
-  PencilSimple,
-  SidebarSimple,
-  TrashSimple,
-} from '@phosphor-icons/react'
+  PanelLeftClose,
+  Settings,
+  SquarePen,
+  Trash2,
+} from 'lucide-react'
 import { type ChatSummary } from '../../chat-store'
+import {
+  SIDEBAR_PANEL_CLASS_NAME,
+  SIDEBAR_TOGGLE_ICON_CLASS_NAME,
+  SIDEBAR_TITLEBAR_CLASS_NAME,
+} from '../../sidebar-layout'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
 type ChatSidebarProps = {
   chats: ChatSummary[]
@@ -31,113 +46,140 @@ export const ChatSidebar = ({
   onToggle,
 }: ChatSidebarProps) => (
   <aside
-    className={`codex-sidebar hidden h-full shrink-0 flex-col border-r border-[var(--line)] md:flex ${
-      isCollapsed ? 'codex-sidebar-collapsed' : ''
-    }`}
+    className={cn(
+      SIDEBAR_PANEL_CLASS_NAME,
+      isCollapsed && 'w-0 border-r-0',
+    )}
     aria-hidden={isCollapsed}
   >
-    <div className="codex-sidebar-inner flex h-full flex-col">
+    <div className="flex h-full w-72 shrink-0 flex-col">
       <div
         data-tauri-drag-region
-        className="sidebar-chrome-row"
+        className={SIDEBAR_TITLEBAR_CLASS_NAME}
       >
-        <button
+        <Button
           type="button"
-          className="sidebar-toggle sidebar-chrome-toggle"
+          variant="ghost"
+          size="icon-sm"
           aria-label="收起侧边栏"
           title="收起侧边栏"
           onClick={onToggle}
         >
-          <SidebarSimple size={16} weight="bold" />
-        </button>
+          <PanelLeftClose className={SIDEBAR_TOGGLE_ICON_CLASS_NAME} />
+        </Button>
       </div>
 
-      <nav className="px-3 pt-4">
-        <SidebarAction
-          icon={<PencilSimple size={18} weight="bold" />}
-          label="新建对话"
-          shortcut="⌘ N"
-          onClick={onNewChat}
-        />
-      </nav>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-7">
-        {chats.length > 0 ? (
-          groupChats(chats).map((group) => (
-            <section key={group.label} className="sidebar-section">
-              <p className="sidebar-section-title">{group.label}</p>
-              <div className="mt-2 space-y-1">
-                {group.chats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className={`chat-row ${
-                      chat.id === activeChatId ? 'chat-row-active' : ''
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      className="chat-row-label"
-                      onClick={() => onSelectChat(chat.id)}
-                    >
-                      <span className="chat-row-dot" aria-hidden="true" />
-                      <span className="chat-row-title truncate">{chat.title}</span>
-                      <span className="chat-row-time">{formatChatTime(chat.updatedAt)}</span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="删除对话"
-                      title="删除对话"
-                      className="chat-row-delete"
-                      onClick={() => onDeleteChat(chat.id)}
-                    >
-                      <TrashSimple size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))
-        ) : (
-          <p className="sidebar-empty">还没有历史对话</p>
-        )}
-      </div>
-
-      <div className="shrink-0 px-3 py-3">
-        <button
+      <div className="px-3">
+        <Button
           type="button"
+          variant="secondary"
+          className="w-full justify-between"
+          onClick={onNewChat}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <SquarePen data-icon="inline-start" />
+            <span className="truncate">新建对话</span>
+          </span>
+          <Badge variant="outline">⌘ N</Badge>
+        </Button>
+      </div>
+
+      <ScrollArea className="min-h-0 flex-1 px-3 py-5">
+        {chats.length > 0 ? (
+          <div className="flex flex-col gap-6">
+            {groupChats(chats).map((group) => (
+              <section key={group.label} className="flex min-w-0 flex-col gap-2">
+                <p className="px-2 text-xs font-medium text-muted-foreground">
+                  {group.label}
+                </p>
+                <div className="flex flex-col gap-1">
+                  {group.chats.map((chat) => (
+                    <ChatRow
+                      key={chat.id}
+                      chat={chat}
+                      isActive={chat.id === activeChatId}
+                      onSelectChat={onSelectChat}
+                      onDeleteChat={onDeleteChat}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <Empty className="min-h-52 border">
+            <EmptyHeader>
+              <EmptyTitle>还没有历史对话</EmptyTitle>
+              <EmptyDescription>新的阅读问题会出现在这里。</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </ScrollArea>
+
+      <Separator />
+      <div className="shrink-0 p-3">
+        <Button
+          type="button"
+          variant={isConfigOpen ? 'secondary' : 'ghost'}
           aria-haspopup="dialog"
           aria-expanded={isConfigOpen}
           onClick={onOpenConfig}
-          className={`sidebar-footer-button ${
-            isConfigOpen ? 'sidebar-footer-button-active' : ''
-          }`}
+          className="w-full justify-between"
         >
-          <span className="sidebar-footer-button-left">
-            <GearSix size={16} weight="bold" />
+          <span className="flex min-w-0 items-center gap-2">
+            <Settings data-icon="inline-start" />
             <span>设置</span>
           </span>
-          <span className="sidebar-shortcut">⌘ ,</span>
-        </button>
+          <Badge variant="outline">⌘ ,</Badge>
+        </Button>
       </div>
     </div>
   </aside>
 )
 
-type SidebarActionProps = {
-  icon: ReactNode
-  label: string
-  shortcut?: string
-  onClick?: () => void
+type ChatRowProps = {
+  chat: ChatSummary
+  isActive: boolean
+  onSelectChat: (id: string) => void
+  onDeleteChat: (id: string) => void
 }
 
-const SidebarAction = ({ icon, label, shortcut, onClick }: SidebarActionProps) => (
-  <button type="button" className="sidebar-action" onClick={onClick}>
-    <span className="sidebar-action-left">
-      {icon}
-      <span className="truncate">{label}</span>
-    </span>
-    {shortcut ? <span className="sidebar-shortcut">{shortcut}</span> : null}
-  </button>
+const ChatRow = ({
+  chat,
+  isActive,
+  onSelectChat,
+  onDeleteChat,
+}: ChatRowProps) => (
+  <div
+    className={cn(
+      'group flex items-center gap-1 rounded-lg',
+      isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+    )}
+  >
+    <Button
+      type="button"
+      variant="ghost"
+      className="h-9 min-w-0 flex-1 justify-start gap-2 px-2"
+      onClick={() => onSelectChat(chat.id)}
+    >
+      <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
+      <span className="truncate text-left">{chat.title}</span>
+      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+        {formatChatTime(chat.updatedAt)}
+      </span>
+    </Button>
+    <Button
+      type="button"
+      aria-label="删除对话"
+      title="删除对话"
+      variant="ghost"
+      size="icon-xs"
+      className="mr-1 opacity-0 group-hover:opacity-100"
+      onClick={() => onDeleteChat(chat.id)}
+    >
+      <Trash2 />
+    </Button>
+  </div>
 )
 
 type ChatGroup = {
