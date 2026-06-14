@@ -39,8 +39,15 @@ describe('client config preferences', () => {
   })
 
   test('creates empty preference memory by default', () => {
-    assert.deepEqual(createDefaultClientConfig().preferences, {
+    const config = createDefaultClientConfig()
+
+    assert.deepEqual(config.preferences, {
       favoriteCategories: [],
+    })
+    assert.deepEqual(config.memory, {
+      enabled: true,
+      includeInRecommendations: true,
+      autoGenerateFromPrompt: true,
     })
   })
 
@@ -52,6 +59,11 @@ describe('client config preferences', () => {
         baseUrl: 'https://example.com/chat',
       },
       wechatApiKey: 'wx-test',
+      memory: {
+        enabled: true,
+        includeInRecommendations: false,
+        autoGenerateFromPrompt: false,
+      },
       preferences: {
         favoriteCategories: [
           BOOK_PREFERENCE_CATEGORIES[0].value,
@@ -63,6 +75,7 @@ describe('client config preferences', () => {
     saveClientConfig(config)
 
     assert.deepEqual(loadClientConfig().preferences, config.preferences)
+    assert.deepEqual(loadClientConfig().memory, config.memory)
   })
 
   test('loads old config without preferences as empty preference memory', () => {
@@ -80,6 +93,11 @@ describe('client config preferences', () => {
 
     assert.deepEqual(loadClientConfig().preferences, {
       favoriteCategories: [],
+    })
+    assert.deepEqual(loadClientConfig().memory, {
+      enabled: true,
+      includeInRecommendations: true,
+      autoGenerateFromPrompt: true,
     })
   })
 
@@ -106,5 +124,29 @@ describe('client config preferences', () => {
     assert.deepEqual(loadClientConfig().preferences.favoriteCategories, [
       BOOK_PREFERENCE_CATEGORIES[1].value,
     ])
+  })
+
+  test('normalizes stored memory settings', () => {
+    window.localStorage.setItem(
+      'book-agent.client-config',
+      JSON.stringify({
+        openrouter: {
+          apiKey: 'sk-test',
+          model: 'deepseek/test',
+          baseUrl: 'https://example.com/chat',
+        },
+        memory: {
+          enabled: false,
+          includeInRecommendations: 'yes',
+          autoGenerateFromPrompt: false,
+        },
+      }),
+    )
+
+    assert.deepEqual(loadClientConfig().memory, {
+      enabled: false,
+      includeInRecommendations: true,
+      autoGenerateFromPrompt: false,
+    })
   })
 })

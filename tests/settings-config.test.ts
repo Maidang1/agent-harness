@@ -18,18 +18,28 @@ describe('settings config', () => {
         baseUrl: '',
       },
       wechatApiKey: 'wx-key',
+      memory: {
+        enabled: true,
+        includeInRecommendations: true,
+        autoGenerateFromPrompt: true,
+      },
       preferences: {
         favoriteCategories: [BOOK_PREFERENCE_CATEGORIES[0].value],
       },
     }
 
-    assert.deepEqual(createSettingsClientConfig(config, ' sk-new '), {
+    assert.deepEqual(createSettingsClientConfig(config, ' sk-new ', ' weread-new '), {
       openrouter: {
         apiKey: 'sk-new',
         model: DEFAULT_OPENROUTER_MODEL,
         baseUrl: DEFAULT_OPENROUTER_BASE_URL,
       },
-      wechatApiKey: 'wx-key',
+      wechatApiKey: 'weread-new',
+      memory: {
+        enabled: true,
+        includeInRecommendations: true,
+        autoGenerateFromPrompt: true,
+      },
       preferences: {
         favoriteCategories: [BOOK_PREFERENCE_CATEGORIES[0].value],
       },

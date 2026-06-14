@@ -1,24 +1,65 @@
+import { useState } from 'react'
 import {
   ComposerPrimitive,
   useAuiState,
 } from '@assistant-ui/react'
-import { CircleNotch, PaperPlaneRight, PlusCircle } from '@phosphor-icons/react'
+import { ArrowUp, CircleNotch, Plus } from '@phosphor-icons/react'
 
-export const Composer = () => (
-  <ComposerPrimitive.Root className="mx-auto flex min-h-[72px] w-full max-w-[880px] items-end gap-3 rounded-3xl border border-[var(--line-strong)] bg-white p-3 shadow-[0_16px_40px_rgba(20,24,28,0.10)]">
-    <span className="composer-tool" aria-hidden="true">
-      <PlusCircle size={20} />
-    </span>
-    <ComposerPrimitive.Input
-      placeholder="描述你的阅读需求，比如：最近工作压力大，想通过阅读调整心态..."
-      className="min-h-11 flex-1 resize-none border-0 bg-transparent px-1 py-3 text-[15px] leading-6 text-[var(--text)] outline-none placeholder:text-[var(--muted)]"
-      autoFocus
-    />
-    <ComposerPrimitive.Send className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--send-bg)] text-white transition hover:bg-[var(--send-bg-hover)] active:scale-[0.98] disabled:bg-[var(--send-disabled)] disabled:text-white">
-      <SendIcon />
-    </ComposerPrimitive.Send>
-  </ComposerPrimitive.Root>
-)
+const preferenceChips = ['低压力', '短篇', '睡前', '治愈']
+
+export const Composer = () => {
+  const [selectedPreferences, setSelectedPreferences] = useState(['低压力', '睡前'])
+
+  const togglePreference = (preference: string) => {
+    setSelectedPreferences((current) =>
+      current.includes(preference)
+        ? current.filter((item) => item !== preference)
+        : [...current, preference],
+    )
+  }
+
+  return (
+    <div className="composer-shell">
+      <div className="preference-strip" aria-label="阅读偏好">
+        {preferenceChips.map((preference) => (
+          <button
+            key={preference}
+            type="button"
+            className={`preference-chip ${
+              selectedPreferences.includes(preference) ? 'preference-chip-active' : ''
+            }`}
+            onClick={() => togglePreference(preference)}
+          >
+            {preference}
+          </button>
+        ))}
+        <button type="button" className="preference-add">
+          <Plus size={16} weight="bold" />
+          添加偏好
+        </button>
+      </div>
+
+      <ComposerPrimitive.Root className="composer-root">
+        <div className="composer-main-row">
+          <button type="button" className="composer-tool" aria-label="添加内容">
+            <Plus size={21} weight="bold" />
+          </button>
+          <ComposerPrimitive.Input
+            id="book-agent-composer"
+            name="message"
+            placeholder="继续提问，或输入 / 选择功能"
+            className="composer-input"
+            autoFocus
+          />
+          <ComposerPrimitive.Send className="composer-send" aria-label="发送消息">
+            <SendIcon />
+          </ComposerPrimitive.Send>
+        </div>
+        <p className="composer-hint">按 Enter 发送，Shift + Enter 换行</p>
+      </ComposerPrimitive.Root>
+    </div>
+  )
+}
 
 const SendIcon = () => {
   const isRunning = useAuiState((s) => s.thread.isRunning)
@@ -26,6 +67,6 @@ const SendIcon = () => {
   return isRunning ? (
     <CircleNotch size={20} className="animate-spin" />
   ) : (
-    <PaperPlaneRight size={19} weight="fill" />
+    <ArrowUp size={20} weight="bold" />
   )
 }

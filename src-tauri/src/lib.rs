@@ -5,16 +5,23 @@ mod memory;
 mod metadata;
 mod openrouter;
 
-use commands::{get_app_metadata, get_preference_memory, recommend_books};
+use commands::{
+    clear_user_memory, generate_user_memory_from_prompt, get_app_metadata, get_preference_memory,
+    get_user_memory, recommend_books, save_user_memory,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            clear_user_memory,
+            generate_user_memory_from_prompt,
             get_app_metadata,
             get_preference_memory,
-            recommend_books
+            get_user_memory,
+            recommend_books,
+            save_user_memory
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -25,10 +32,10 @@ mod module_contract_tests {
     use crate::{
         chat::ChatMessage,
         config::{
-            build_client_config, ClientConfig, ClientOpenRouterConfig, UserPreferences,
-            DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL,
+            build_client_config, ClientConfig, ClientOpenRouterConfig, MemorySettings,
+            UserPreferences, DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL,
         },
-        memory::{update_preference_memory, PreferenceMemory},
+        memory::{EvidenceMemory, ProfileMemory, ReadingPlanMemory, ReadingPlanStatus, UserMemory},
         openrouter::build_openrouter_messages,
     };
 
@@ -44,6 +51,7 @@ mod module_contract_tests {
             preferences: Some(UserPreferences {
                 favorite_categories: vec![" 文学小说 ".to_string(), "文学小说".to_string()],
             }),
+            memory: None,
         })
         .unwrap();
 
@@ -59,14 +67,25 @@ mod module_contract_tests {
             vec!["文学小说"]
         );
 
-        let mut memory = PreferenceMemory::default();
-        update_preference_memory(
-            &mut memory,
-            &[ChatMessage {
-                role: "user".to_string(),
-                content: "最近想读文学小说".to_string(),
+        let memory = UserMemory {
+            profile: ProfileMemory {
+                summary: "最近想读文学小说".to_string(),
+                learned_categories: vec!["文学小说".to_string()],
+                notes: vec![],
+            },
+            plans: vec![ReadingPlanMemory {
+                id: "plan-a".to_string(),
+                title: "周末阅读计划".to_string(),
+                goal: "找一本适合周末读的小说".to_string(),
+                status: ReadingPlanStatus::Active,
+                evidence: "用户提到周末读书".to_string(),
+                updated_at: 1,
             }],
-        );
+            evidence: EvidenceMemory {
+                recent_prompts: vec!["最近想读文学小说".to_string()],
+            },
+            ..UserMemory::default()
+        };
 
         let messages = build_openrouter_messages(
             vec![ChatMessage {
@@ -75,9 +94,10 @@ mod module_contract_tests {
             }],
             &memory,
             &runtime_config.preferences,
+            &MemorySettings::default(),
         );
 
-        assert!(messages[1].content.contains("用户偏好记忆"));
+        assert!(messages[1].content.contains("长期用户记忆"));
         assert!(messages[1].content.contains("最近想读文学小说"));
         assert!(messages[1].content.contains("显式偏好分类：文学小说"));
     }

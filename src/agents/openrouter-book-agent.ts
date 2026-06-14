@@ -9,6 +9,8 @@ import {
 } from '@ag-ui/client'
 import { Observable, type Subscriber } from 'rxjs'
 import { type BookAgentClientConfig } from '../client-config'
+import { generateUserMemoryFromPrompt } from '../memory-store'
+import { type UserMemoryView } from '../memory-data'
 import { contentToText } from '../text-content.ts'
 
 type TauriMessage = {
@@ -18,6 +20,7 @@ type TauriMessage = {
 
 export class OpenRouterBookAgent extends HttpAgent {
   private clientConfig: BookAgentClientConfig
+  private onMemoryChange?: (memory: UserMemoryView) => void
 
   constructor(clientConfig: BookAgentClientConfig) {
     super({
@@ -29,6 +32,10 @@ export class OpenRouterBookAgent extends HttpAgent {
 
   setClientConfig(config: BookAgentClientConfig) {
     this.clientConfig = config
+  }
+
+  setMemoryChangeHandler(handler: (memory: UserMemoryView) => void) {
+    this.onMemoryChange = handler
   }
 
   run(input: RunAgentInput): Observable<BaseEvent> {
@@ -71,8 +78,10 @@ export class OpenRouterBookAgent extends HttpAgent {
         throw new Error('请先在右上角配置 OpenRouter API Key。')
       }
 
+      const tauriMessages = toTauriMessages(input.messages)
+      const latestUserPrompt = getLatestUserPrompt(tauriMessages)
       const response = await invoke<string>('recommend_books', {
-        messages: toTauriMessages(input.messages),
+        messages: tauriMessages,
         config: {
           openrouter: {
             apiKey: openrouter.apiKey,
@@ -81,6 +90,7 @@ export class OpenRouterBookAgent extends HttpAgent {
           },
           wechatApiKey,
           preferences,
+          memory: this.clientConfig.memory,
         },
       })
 
@@ -90,6 +100,7 @@ export class OpenRouterBookAgent extends HttpAgent {
       }
 
       await streamText(response, messageId, subscriber, signal)
+      this.queueMemoryGeneration(latestUserPrompt)
     } catch (error) {
       if (signal.aborted) {
         subscriber.complete()
@@ -108,6 +119,25 @@ export class OpenRouterBookAgent extends HttpAgent {
     })
     subscriber.complete()
   }
+
+  private queueMemoryGeneration(prompt: string) {
+    const { memory, openrouter } = this.clientConfig
+
+    if (
+      !prompt ||
+      !memory.enabled ||
+      !memory.autoGenerateFromPrompt ||
+      openrouter.apiKey.trim().length === 0
+    ) {
+      return
+    }
+
+    void generateUserMemoryFromPrompt(prompt, this.clientConfig)
+      .then((userMemory) => this.onMemoryChange?.(userMemory))
+      .catch(() => {
+        // Memory extraction is best-effort and must not interrupt the chat run.
+      })
+  }
 }
 
 const toTauriMessages = (messages: Message[]): TauriMessage[] =>
@@ -118,6 +148,12 @@ const toTauriMessages = (messages: Message[]): TauriMessage[] =>
       content: contentToText(message.content),
     }))
     .filter((message) => message.content.trim().length > 0)
+
+const getLatestUserPrompt = (messages: TauriMessage[]) =>
+  [...messages]
+    .reverse()
+    .find((message) => message.role === 'user')
+    ?.content.trim() ?? ''
 
 const streamText = async (
   text: string,

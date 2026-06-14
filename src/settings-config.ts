@@ -7,6 +7,7 @@ import {
 export const createSettingsClientConfig = (
   config: BookAgentClientConfig,
   apiKey: string,
+  wechatApiKey = config.wechatApiKey,
 ): BookAgentClientConfig => ({
   ...config,
   openrouter: {
@@ -14,4 +15,5 @@ export const createSettingsClientConfig = (
     model: config.openrouter.model.trim() || DEFAULT_OPENROUTER_MODEL,
     baseUrl: config.openrouter.baseUrl.trim() || DEFAULT_OPENROUTER_BASE_URL,
   },
+  wechatApiKey: wechatApiKey.trim(),
 })

@@ -20,10 +20,17 @@ export type BookUserPreferences = {
   favoriteCategories: BookPreferenceCategory[]
 }
 
+export type BookMemorySettings = {
+  enabled: boolean
+  includeInRecommendations: boolean
+  autoGenerateFromPrompt: boolean
+}
+
 export type BookAgentClientConfig = {
   openrouter: OpenRouterClientConfig
   wechatApiKey: string
   preferences: BookUserPreferences
+  memory: BookMemorySettings
 }
 
 export const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash'
@@ -42,6 +49,11 @@ export const createDefaultClientConfig = (): BookAgentClientConfig => ({
   wechatApiKey: '',
   preferences: {
     favoriteCategories: [],
+  },
+  memory: {
+    enabled: true,
+    includeInRecommendations: true,
+    autoGenerateFromPrompt: true,
   },
 })
 
@@ -70,6 +82,7 @@ export const loadClientConfig = (): BookAgentClientConfig => {
       },
       wechatApiKey: stringValue(parsedConfig.wechatApiKey, ''),
       preferences: normalizePreferences(parsedConfig.preferences),
+      memory: normalizeMemorySettings(parsedConfig.memory),
     }
   } catch {
     return defaults
@@ -133,3 +146,28 @@ const isBookPreferenceCategory = (
   value: string,
 ): value is BookPreferenceCategory =>
   BOOK_PREFERENCE_CATEGORIES.some((category) => category.value === value)
+
+const normalizeMemorySettings = (value: unknown): BookMemorySettings => {
+  const defaults = createDefaultClientConfig().memory
+
+  if (typeof value !== 'object' || value === null) {
+    return defaults
+  }
+
+  const settings = value as Partial<BookMemorySettings>
+
+  return {
+    enabled: booleanValue(settings.enabled, defaults.enabled),
+    includeInRecommendations: booleanValue(
+      settings.includeInRecommendations,
+      defaults.includeInRecommendations,
+    ),
+    autoGenerateFromPrompt: booleanValue(
+      settings.autoGenerateFromPrompt,
+      defaults.autoGenerateFromPrompt,
+    ),
+  }
+}
+
+const booleanValue = (value: unknown, fallback: boolean) =>
+  typeof value === 'boolean' ? value : fallback

@@ -1,14 +1,25 @@
-import { SidebarSimple } from '@phosphor-icons/react'
+import {
+  CaretDown,
+  DotsThreeVertical,
+  SidebarSimple,
+} from '@phosphor-icons/react'
 
 type MainHeaderProps = {
+  title: string
+  model: string
   isOpenRouterConfigured: boolean
   isSidebarCollapsed: boolean
   onToggleSidebar: () => void
+  onOpenConfig: () => void
 }
 
 export const MainHeader = ({
+  title,
+  model,
+  isOpenRouterConfigured,
   isSidebarCollapsed,
   onToggleSidebar,
+  onOpenConfig,
 }: MainHeaderProps) => (
   <header
     data-tauri-drag-region
@@ -28,7 +39,40 @@ export const MainHeader = ({
           <SidebarSimple size={16} weight="bold" />
         </button>
       ) : null}
-      <h1 className="main-header-title">读书推荐 Agent</h1>
+      <div className="main-header-copy">
+        <h1 className="main-header-title">{title}</h1>
+        <p className="main-header-subtitle">读书推荐 Agent</p>
+      </div>
+    </div>
+    <div className="main-header-actions">
+      <span
+        className={`provider-status ${
+          isOpenRouterConfigured ? 'provider-status-ready' : 'provider-status-missing'
+        }`}
+      >
+        <span className="provider-status-dot" aria-hidden="true" />
+        {isOpenRouterConfigured ? 'OpenRouter Ready' : 'OpenRouter 待配置'}
+      </span>
+      <span className="model-pill">
+        <span className="truncate">{formatModelName(model)}</span>
+        <CaretDown size={14} weight="bold" />
+      </span>
+      <button
+        type="button"
+        className="icon-button main-header-menu"
+        aria-label="打开设置"
+        title="打开设置"
+        onClick={onOpenConfig}
+      >
+        <DotsThreeVertical size={18} weight="bold" />
+      </button>
     </div>
   </header>
 )
+
+const formatModelName = (model: string) =>
+  model
+    .split('/')
+    .at(-1)
+    ?.replace(/-/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase()) || model
