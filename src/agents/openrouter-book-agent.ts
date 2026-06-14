@@ -9,6 +9,7 @@ import {
 } from '@ag-ui/client'
 import { Observable, type Subscriber } from 'rxjs'
 import { type BookAgentClientConfig } from '../client-config'
+import { contentToText } from '../text-content.ts'
 
 type TauriMessage = {
   role: 'user' | 'assistant'
@@ -64,7 +65,7 @@ export class OpenRouterBookAgent extends HttpAgent {
     })
 
     try {
-      const { openrouter, wechatApiKey } = this.clientConfig
+      const { openrouter, wechatApiKey, preferences } = this.clientConfig
 
       if (openrouter.apiKey.trim().length === 0) {
         throw new Error('请先在右上角配置 OpenRouter API Key。')
@@ -79,6 +80,7 @@ export class OpenRouterBookAgent extends HttpAgent {
             baseUrl: openrouter.baseUrl,
           },
           wechatApiKey,
+          preferences,
         },
       })
 
@@ -116,33 +118,6 @@ const toTauriMessages = (messages: Message[]): TauriMessage[] =>
       content: contentToText(message.content),
     }))
     .filter((message) => message.content.trim().length > 0)
-
-const contentToText = (content: unknown) => {
-  if (typeof content === 'string') {
-    return content
-  }
-
-  if (Array.isArray(content)) {
-    return content.map((part) => textPartToString(part)).join('')
-  }
-
-  return ''
-}
-
-const textPartToString = (part: unknown) => {
-  if (
-    typeof part === 'object' &&
-    part !== null &&
-    'type' in part &&
-    'text' in part &&
-    part.type === 'text' &&
-    typeof part.text === 'string'
-  ) {
-    return part.text
-  }
-
-  return ''
-}
 
 const streamText = async (
   text: string,

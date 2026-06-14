@@ -1,20 +1,29 @@
-import { useCallback, useState } from 'react'
-import { AssistantRuntimeProvider } from '@assistant-ui/react'
-import { useAgUiRuntime } from '@assistant-ui/react-ag-ui'
+import { useCallback, useEffect, useState } from 'react'
 import { OpenRouterBookAgent } from './agents/openrouter-book-agent'
-import { Thread } from './components/Thread'
+import { ChatWorkspace } from './components/ChatWorkspace'
 import {
-  hasWechatApiKey,
-  hasOpenRouterApiKey,
   loadClientConfig,
   saveClientConfig,
   type BookAgentClientConfig,
 } from './client-config'
+import {
+  createConversationId,
+  deleteConversation,
+  listConversations,
+  subscribeChats,
+  type ChatSummary,
+} from './chat-store'
 
 export const App = () => {
   const [clientConfig, setClientConfig] = useState(loadClientConfig)
   const [agent] = useState(() => new OpenRouterBookAgent(clientConfig))
-  const runtime = useAgUiRuntime({ agent })
+  const [conversationId, setConversationId] = useState(createConversationId)
+  const [chats, setChats] = useState<ChatSummary[]>(() => listConversations())
+
+  useEffect(() => {
+    return subscribeChats(() => setChats(listConversations()))
+  }, [])
+
   const updateClientConfig = useCallback(
     (config: BookAgentClientConfig) => {
       agent.setClientConfig(config)
@@ -24,14 +33,25 @@ export const App = () => {
     [agent],
   )
 
+  const handleNewChat = useCallback(() => {
+    setConversationId(createConversationId())
+  }, [])
+
+  const handleSelectChat = useCallback((id: string) => {
+    setConversationId(id)
+  }, [])
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <Thread
-        clientConfig={clientConfig}
-        onClientConfigChange={updateClientConfig}
-        isOpenRouterConfigured={hasOpenRouterApiKey(clientConfig)}
-        isWechatConfigured={hasWechatApiKey(clientConfig)}
-      />
-    </AssistantRuntimeProvider>
+    <ChatWorkspace
+      key={conversationId}
+      conversationId={conversationId}
+      agent={agent}
+      clientConfig={clientConfig}
+      onClientConfigChange={updateClientConfig}
+      chats={chats}
+      onNewChat={handleNewChat}
+      onSelectChat={handleSelectChat}
+      onDeleteChat={deleteConversation}
+    />
   )
 }

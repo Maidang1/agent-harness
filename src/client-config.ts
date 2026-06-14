@@ -4,9 +4,26 @@ export type OpenRouterClientConfig = {
   baseUrl: string
 }
 
+export const BOOK_PREFERENCE_CATEGORIES = [
+  { value: '文学小说', label: '文学小说' },
+  { value: '商业管理', label: '商业管理' },
+  { value: '心理成长', label: '心理成长' },
+  { value: '历史社科', label: '历史社科' },
+  { value: '科技科普', label: '科技科普' },
+  { value: '传记纪实', label: '传记纪实' },
+] as const
+
+export type BookPreferenceCategory =
+  (typeof BOOK_PREFERENCE_CATEGORIES)[number]['value']
+
+export type BookUserPreferences = {
+  favoriteCategories: BookPreferenceCategory[]
+}
+
 export type BookAgentClientConfig = {
   openrouter: OpenRouterClientConfig
   wechatApiKey: string
+  preferences: BookUserPreferences
 }
 
 export const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash'
@@ -23,6 +40,9 @@ export const createDefaultClientConfig = (): BookAgentClientConfig => ({
     baseUrl: DEFAULT_OPENROUTER_BASE_URL,
   },
   wechatApiKey: '',
+  preferences: {
+    favoriteCategories: [],
+  },
 })
 
 export const loadClientConfig = (): BookAgentClientConfig => {
@@ -49,6 +69,7 @@ export const loadClientConfig = (): BookAgentClientConfig => {
         baseUrl: stringValue(openrouterConfig.baseUrl, DEFAULT_OPENROUTER_BASE_URL),
       },
       wechatApiKey: stringValue(parsedConfig.wechatApiKey, ''),
+      preferences: normalizePreferences(parsedConfig.preferences),
     }
   } catch {
     return defaults
@@ -73,3 +94,42 @@ const stringValue = (value: unknown, fallback: string) => {
   const trimmedValue = value.trim()
   return trimmedValue || fallback
 }
+
+const normalizePreferences = (value: unknown): BookUserPreferences => {
+  if (typeof value !== 'object' || value === null) {
+    return { favoriteCategories: [] }
+  }
+
+  return {
+    favoriteCategories: normalizeFavoriteCategories(
+      (value as Partial<BookUserPreferences>).favoriteCategories,
+    ),
+  }
+}
+
+const normalizeFavoriteCategories = (value: unknown): BookPreferenceCategory[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const categories = new Set<BookPreferenceCategory>()
+
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      continue
+    }
+
+    const category = item.trim()
+
+    if (isBookPreferenceCategory(category)) {
+      categories.add(category)
+    }
+  }
+
+  return [...categories]
+}
+
+const isBookPreferenceCategory = (
+  value: string,
+): value is BookPreferenceCategory =>
+  BOOK_PREFERENCE_CATEGORIES.some((category) => category.value === value)
