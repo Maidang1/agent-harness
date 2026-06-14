@@ -8,8 +8,6 @@ pub(crate) const DEFAULT_OPENROUTER_BASE_URL: &str =
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ClientConfig {
     pub(crate) openrouter: ClientOpenRouterConfig,
-    pub(crate) wechat_api_key: Option<String>,
-    pub(crate) preferences: Option<UserPreferences>,
     pub(crate) memory: Option<MemorySettings>,
 }
 
@@ -21,17 +19,10 @@ pub(crate) struct ClientOpenRouterConfig {
     pub(crate) base_url: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct UserPreferences {
-    pub(crate) favorite_categories: Vec<String>,
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MemorySettings {
     pub(crate) enabled: bool,
-    pub(crate) include_in_recommendations: bool,
     pub(crate) auto_generate_from_prompt: bool,
 }
 
@@ -39,7 +30,6 @@ impl Default for MemorySettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            include_in_recommendations: true,
             auto_generate_from_prompt: true,
         }
     }
@@ -48,8 +38,6 @@ impl Default for MemorySettings {
 #[derive(Debug)]
 pub(crate) struct RuntimeConfig {
     pub(crate) openrouter: OpenRouterConfig,
-    pub(crate) wechat_api_key: Option<String>,
-    pub(crate) preferences: UserPreferences,
     pub(crate) memory: MemorySettings,
 }
 
@@ -63,8 +51,6 @@ pub(crate) struct OpenRouterConfig {
 pub(crate) fn build_client_config(config: ClientConfig) -> Result<RuntimeConfig, String> {
     Ok(RuntimeConfig {
         openrouter: build_openrouter_config(config.openrouter)?,
-        wechat_api_key: optional_secret_value(config.wechat_api_key),
-        preferences: normalize_preferences(config.preferences),
         memory: config.memory.unwrap_or_default(),
     })
 }
@@ -83,24 +69,6 @@ fn build_openrouter_config(config: ClientOpenRouterConfig) -> Result<OpenRouterC
     })
 }
 
-fn normalize_preferences(preferences: Option<UserPreferences>) -> UserPreferences {
-    let mut favorite_categories = Vec::new();
-
-    for category in preferences.unwrap_or_default().favorite_categories {
-        let category = category.trim().to_string();
-
-        if category.is_empty() || favorite_categories.contains(&category) {
-            continue;
-        }
-
-        favorite_categories.push(category);
-    }
-
-    UserPreferences {
-        favorite_categories,
-    }
-}
-
 fn optional_config_value(value: Option<String>, default_value: &str) -> String {
     value
         .as_deref()
@@ -108,14 +76,6 @@ fn optional_config_value(value: Option<String>, default_value: &str) -> String {
         .filter(|value| !value.is_empty())
         .unwrap_or(default_value)
         .to_string()
-}
-
-fn optional_secret_value(value: Option<String>) -> Option<String> {
-    value
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -162,23 +122,6 @@ mod tests {
     }
 
     #[test]
-    fn client_config_trims_wechat_api_key() {
-        let config = build_client_config(ClientConfig {
-            openrouter: ClientOpenRouterConfig {
-                api_key: "sk-test".to_string(),
-                model: None,
-                base_url: None,
-            },
-            wechat_api_key: Some("  wx-test  ".to_string()),
-            preferences: None,
-            memory: None,
-        })
-        .unwrap();
-
-        assert_eq!(config.wechat_api_key.as_deref(), Some("wx-test"));
-    }
-
-    #[test]
     fn client_config_defaults_memory_settings() {
         let config = build_client_config(ClientConfig {
             openrouter: ClientOpenRouterConfig {
@@ -186,8 +129,6 @@ mod tests {
                 model: None,
                 base_url: None,
             },
-            wechat_api_key: None,
-            preferences: None,
             memory: None,
         })
         .unwrap();
@@ -203,11 +144,8 @@ mod tests {
                 model: None,
                 base_url: None,
             },
-            wechat_api_key: None,
-            preferences: None,
             memory: Some(MemorySettings {
                 enabled: false,
-                include_in_recommendations: false,
                 auto_generate_from_prompt: true,
             }),
         })
@@ -217,7 +155,6 @@ mod tests {
             config.memory,
             MemorySettings {
                 enabled: false,
-                include_in_recommendations: false,
                 auto_generate_from_prompt: true,
             }
         );

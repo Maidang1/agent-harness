@@ -6,9 +6,6 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-#[cfg(test)]
-use crate::chat::ChatMessage;
-
 pub(crate) const USER_MEMORY_SCHEMA_VERSION: u32 = 1;
 
 const USER_MEMORY_FILE_NAME: &str = "user-memory.json";
@@ -233,7 +230,16 @@ pub(crate) fn save_preference_memory(path: &Path, memory: &PreferenceMemory) -> 
 }
 
 #[cfg(test)]
-pub(crate) fn update_preference_memory(memory: &mut PreferenceMemory, messages: &[ChatMessage]) {
+pub(crate) struct PreferenceMemoryMessage {
+    role: String,
+    content: String,
+}
+
+#[cfg(test)]
+pub(crate) fn update_preference_memory(
+    memory: &mut PreferenceMemory,
+    messages: &[PreferenceMemoryMessage],
+) {
     for message in messages {
         if message.role != "user" {
             continue;
@@ -572,15 +578,15 @@ mod tests {
         update_preference_memory(
             &mut memory,
             &[
-                ChatMessage {
+                PreferenceMemoryMessage {
                     role: "user".to_string(),
                     content: "最近工作压力大，想读心理成长类的书".to_string(),
                 },
-                ChatMessage {
+                PreferenceMemoryMessage {
                     role: "assistant".to_string(),
                     content: "可以先读一些压力管理相关书籍。".to_string(),
                 },
-                ChatMessage {
+                PreferenceMemoryMessage {
                     role: "user".to_string(),
                     content: "也想了解商业管理和创业".to_string(),
                 },

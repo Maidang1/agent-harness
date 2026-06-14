@@ -29,7 +29,7 @@ describe('sidebar layout', () => {
         trafficLightX + trafficLightClusterWidth,
     )
     assert.match(SIDEBAR_TITLEBAR_CLASS_NAME, /\bpl-20\b/)
-    assert.match(SIDEBAR_TITLEBAR_CLASS_NAME, /\bh-14\b/)
+    assert.match(SIDEBAR_TITLEBAR_CLASS_NAME, /\bh-12\b/)
     assert.match(
       SIDEBAR_PANEL_CLASS_NAME,
       /color-mix\(in_oklch,var\(--sidebar\)_72%,transparent\)/,
@@ -40,7 +40,7 @@ describe('sidebar layout', () => {
   test('lets the sidebar translucency reach the desktop background', () => {
     assert.match(THREAD_ROOT_CLASS_NAME, /\bbg-transparent\b/)
     assert.doesNotMatch(THREAD_ROOT_CLASS_NAME, /\bbg-background\b/)
-    assert.match(MAIN_WORKSPACE_CLASS_NAME, /\bbg-background\b/)
+    assert.match(MAIN_WORKSPACE_CLASS_NAME, /--background/)
   })
 
   test('uses one-row titlebar headers', () => {
@@ -49,7 +49,7 @@ describe('sidebar layout', () => {
       { encoding: 'utf8' },
     )
 
-    assert.match(MAIN_HEADER_CLASS_NAME, /\bh-14\b/)
+    assert.match(MAIN_HEADER_CLASS_NAME, /\bh-12\b/)
     assert.match(
       MAIN_HEADER_CLASS_NAME,
       /color-mix\(in_oklch,var\(--background\)_82%,transparent\)/,

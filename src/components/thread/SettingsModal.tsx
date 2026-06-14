@@ -8,6 +8,7 @@ import {
   Info,
   KeyRound,
   LoaderCircle,
+  UserRound,
 } from 'lucide-react'
 import {
   Alert,
@@ -40,7 +41,17 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { type BookAgentClientConfig } from '../../client-config'
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@/components/ui/toggle-group'
+import {
+  BOOK_PERSONA_PRESETS,
+  getBookPersonaPreset,
+  isBookPersonaPresetId,
+  type BookAgentClientConfig,
+  type BookPersonaPresetId,
+} from '../../client-config'
 import {
   createClearedUserMemory,
   createDefaultUserMemory,
@@ -53,7 +64,7 @@ import {
 } from '../../memory-store'
 import { createSettingsClientConfig } from '../../settings-config'
 
-type SettingsTab = 'api' | 'memory'
+type SettingsTab = 'api' | 'persona' | 'memory'
 
 type SettingsModalProps = {
   config: BookAgentClientConfig
@@ -73,6 +84,13 @@ export const SettingsModal = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>('api')
   const [apiKey, setApiKey] = useState(config.openrouter.apiKey)
   const [wechatApiKey, setWechatApiKey] = useState(config.wechatApiKey)
+  const [personaPresetId, setPersonaPresetId] = useState(config.persona.presetId)
+  const [useCustomPersona, setUseCustomPersona] = useState(
+    config.persona.useCustomPrompt,
+  )
+  const [personaCustomPrompt, setPersonaCustomPrompt] = useState(
+    config.persona.customPrompt,
+  )
   const [memoryEnabled, setMemoryEnabled] = useState(config.memory.enabled)
   const [autoGenerateFromPrompt, setAutoGenerateFromPrompt] = useState(
     config.memory.autoGenerateFromPrompt,
@@ -88,6 +106,11 @@ export const SettingsModal = ({
       includeInRecommendations: memoryEnabled,
       autoGenerateFromPrompt,
     },
+    persona: {
+      presetId: personaPresetId,
+      customPrompt: personaCustomPrompt,
+      useCustomPrompt: useCustomPersona,
+    },
   })
 
   const applyMemory = (memory: UserMemoryView) => {
@@ -101,6 +124,20 @@ export const SettingsModal = ({
 
   const handleWechatApiKeyChange = (event: ChangeEvent<HTMLInputElement>) => {
     setWechatApiKey(event.target.value)
+  }
+
+  const handlePersonaPresetChange = (value: string) => {
+    if (isBookPersonaPresetId(value)) {
+      setPersonaPresetId(value)
+    }
+  }
+
+  const handleUseCustomPersonaChange = (value: boolean) => {
+    setUseCustomPersona(value)
+
+    if (value && personaCustomPrompt.trim().length === 0) {
+      setPersonaCustomPrompt(getBookPersonaPreset(personaPresetId).prompt)
+    }
   }
 
   const handleClearMemory = async () => {
@@ -174,13 +211,17 @@ export const SettingsModal = ({
                 <KeyRound data-icon="inline-start" />
                 API Key
               </TabsTrigger>
+              <TabsTrigger value="persona" className="h-9 flex-none justify-start">
+                <UserRound data-icon="inline-start" />
+                人设
+              </TabsTrigger>
               <TabsTrigger value="memory" className="h-9 flex-none justify-start">
                 <Brain data-icon="inline-start" />
                 记忆
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="api" className="m-0 flex flex-col gap-5 p-5">
+            <TabsContent value="api" className="m-0 flex flex-col gap-5 overflow-y-auto p-5">
               <ApiSettings
                 apiKey={apiKey}
                 wechatApiKey={wechatApiKey}
@@ -189,7 +230,18 @@ export const SettingsModal = ({
               />
             </TabsContent>
 
-            <TabsContent value="memory" className="m-0 flex flex-col gap-5 p-5">
+            <TabsContent value="persona" className="m-0 flex flex-col gap-5 overflow-y-auto p-5">
+              <PersonaSettingsPanel
+                personaPresetId={personaPresetId}
+                useCustomPersona={useCustomPersona}
+                personaCustomPrompt={personaCustomPrompt}
+                onPersonaPresetChange={handlePersonaPresetChange}
+                onUseCustomPersonaChange={handleUseCustomPersonaChange}
+                onPersonaCustomPromptChange={setPersonaCustomPrompt}
+              />
+            </TabsContent>
+
+            <TabsContent value="memory" className="m-0 flex flex-col gap-5 overflow-y-auto p-5">
               <MemorySettingsPanel
                 memoryEnabled={memoryEnabled}
                 autoGenerateFromPrompt={autoGenerateFromPrompt}
@@ -270,6 +322,79 @@ const ApiSettings = ({
     </Field>
   </FieldGroup>
 )
+
+type PersonaSettingsPanelProps = {
+  personaPresetId: BookPersonaPresetId
+  useCustomPersona: boolean
+  personaCustomPrompt: string
+  onPersonaPresetChange: (value: string) => void
+  onUseCustomPersonaChange: (value: boolean) => void
+  onPersonaCustomPromptChange: (value: string) => void
+}
+
+const PersonaSettingsPanel = ({
+  personaPresetId,
+  useCustomPersona,
+  personaCustomPrompt,
+  onPersonaPresetChange,
+  onUseCustomPersonaChange,
+  onPersonaCustomPromptChange,
+}: PersonaSettingsPanelProps) => {
+  const presetPrompt = getBookPersonaPreset(personaPresetId).prompt
+  const promptValue = useCustomPersona ? personaCustomPrompt : presetPrompt
+
+  return (
+    <FieldGroup>
+      <Field>
+        <FieldLabel>默认人设</FieldLabel>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={personaPresetId}
+          onValueChange={onPersonaPresetChange}
+          className="grid w-full grid-cols-1 items-stretch sm:grid-cols-2"
+        >
+          {BOOK_PERSONA_PRESETS.map((preset) => (
+            <ToggleGroupItem
+              key={preset.id}
+              value={preset.id}
+              className="h-auto min-h-16 flex-col items-start justify-start whitespace-normal px-3 py-2 text-left"
+            >
+              <span className="text-sm font-medium">{preset.label}</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {preset.prompt}
+              </span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </Field>
+
+      <Field orientation="horizontal" className="rounded-lg border p-3">
+        <Switch
+          id="persona-custom"
+          checked={useCustomPersona}
+          onCheckedChange={onUseCustomPersonaChange}
+        />
+        <FieldContent>
+          <FieldLabel htmlFor="persona-custom">自定义 prompt</FieldLabel>
+          <FieldDescription>开启后使用下方内容覆盖默认人设。</FieldDescription>
+        </FieldContent>
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="persona-prompt">人设 prompt</FieldLabel>
+        <Textarea
+          id="persona-prompt"
+          value={promptValue}
+          onChange={(event) => onPersonaCustomPromptChange(event.target.value)}
+          rows={7}
+          disabled={!useCustomPersona}
+          className="min-h-44"
+        />
+      </Field>
+    </FieldGroup>
+  )
+}
 
 type MemorySettingsPanelProps = {
   memoryEnabled: boolean

@@ -35,8 +35,6 @@ export const generateUserMemoryFromPrompt = async (
           model: config.openrouter.model,
           baseUrl: config.openrouter.baseUrl,
         },
-        wechatApiKey: config.wechatApiKey,
-        preferences: config.preferences,
         memory: config.memory,
       },
     }),

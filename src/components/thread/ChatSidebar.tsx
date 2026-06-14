@@ -10,7 +10,6 @@ import {
   SIDEBAR_TOGGLE_ICON_CLASS_NAME,
   SIDEBAR_TITLEBAR_CLASS_NAME,
 } from '../../sidebar-layout'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -19,7 +18,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
 type ChatSidebarProps = {
@@ -52,7 +50,7 @@ export const ChatSidebar = ({
     )}
     aria-hidden={isCollapsed}
   >
-    <div className="flex h-full w-72 shrink-0 flex-col">
+    <div className="flex h-full w-65 shrink-0 flex-col">
       <div
         data-tauri-drag-region
         className={SIDEBAR_TITLEBAR_CLASS_NAME}
@@ -69,30 +67,30 @@ export const ChatSidebar = ({
         </Button>
       </div>
 
-      <div className="px-3">
+      <div className="px-2.5">
         <Button
           type="button"
-          variant="secondary"
-          className="w-full justify-between"
+          variant="ghost"
+          className="w-full justify-between text-[12px]"
           onClick={onNewChat}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <SquarePen data-icon="inline-start" />
+            <SquarePen className="size-3.5 text-muted-foreground" data-icon="inline-start" />
             <span className="truncate">新建对话</span>
           </span>
-          <Badge variant="outline">⌘ N</Badge>
+          <span className="text-[10px] text-muted-foreground">⌘N</span>
         </Button>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1 px-3 py-5">
+      <ScrollArea className="min-h-0 flex-1 px-2.5 py-4">
         {chats.length > 0 ? (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5">
             {groupChats(chats).map((group) => (
-              <section key={group.label} className="flex min-w-0 flex-col gap-2">
-                <p className="px-2 text-xs font-medium text-muted-foreground">
+              <section key={group.label} className="flex min-w-0 flex-col gap-1">
+                <p className="px-2 text-[10.5px] font-medium text-muted-foreground">
                   {group.label}
                 </p>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-px">
                   {group.chats.map((chat) => (
                     <ChatRow
                       key={chat.id}
@@ -107,30 +105,30 @@ export const ChatSidebar = ({
             ))}
           </div>
         ) : (
-          <Empty className="min-h-52 border">
+          <Empty className="min-h-52 border-0 bg-transparent">
             <EmptyHeader>
-              <EmptyTitle>还没有历史对话</EmptyTitle>
-              <EmptyDescription>新的阅读问题会出现在这里。</EmptyDescription>
+              <EmptyTitle className="text-[11px] text-muted-foreground">还没有历史对话</EmptyTitle>
+              <EmptyDescription className="text-[10.5px] text-muted-foreground">新的阅读问题会出现在这里。</EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}
       </ScrollArea>
 
-      <Separator />
-      <div className="shrink-0 p-3">
+      <div className="border-t border-hairline" />
+      <div className="shrink-0 p-2.5">
         <Button
           type="button"
           variant={isConfigOpen ? 'secondary' : 'ghost'}
           aria-haspopup="dialog"
           aria-expanded={isConfigOpen}
           onClick={onOpenConfig}
-          className="w-full justify-between"
+          className="w-full justify-between text-[12px]"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <Settings data-icon="inline-start" />
+            <Settings className="size-3.5 text-muted-foreground" data-icon="inline-start" />
             <span>设置</span>
           </span>
-          <Badge variant="outline">⌘ ,</Badge>
+          <span className="text-[10px] text-muted-foreground">⌘,</span>
         </Button>
       </div>
     </div>
@@ -152,19 +150,22 @@ const ChatRow = ({
 }: ChatRowProps) => (
   <div
     className={cn(
-      'group flex items-center gap-1 rounded-lg',
-      isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+      'group flex items-center gap-0.5 rounded-md',
+      isActive && 'bg-sidebar-accent/70',
     )}
   >
     <Button
       type="button"
       variant="ghost"
-      className="h-9 min-w-0 flex-1 justify-start gap-2 px-2"
+      className="h-8 min-w-0 flex-1 justify-start gap-2 px-2 text-[12px]"
       onClick={() => onSelectChat(chat.id)}
     >
-      <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
+      <span className={cn(
+        'size-1 shrink-0 rounded-full',
+        isActive ? 'bg-system-accent' : 'bg-muted-foreground',
+      )} />
       <span className="truncate text-left">{chat.title}</span>
-      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
         {formatChatTime(chat.updatedAt)}
       </span>
     </Button>
@@ -174,10 +175,10 @@ const ChatRow = ({
       title="删除对话"
       variant="ghost"
       size="icon-xs"
-      className="mr-1 opacity-0 group-hover:opacity-100"
+      className="mr-0.5 opacity-0 group-hover:opacity-60 hover:opacity-100!"
       onClick={() => onDeleteChat(chat.id)}
     >
-      <Trash2 />
+      <Trash2 className="size-3" />
     </Button>
   </div>
 )

@@ -4,6 +4,41 @@ export type OpenRouterClientConfig = {
   baseUrl: string
 }
 
+export const BOOK_PERSONA_PRESETS = [
+  {
+    id: 'professional',
+    label: '专业顾问',
+    prompt:
+      '你是专业的读书顾问。回复清晰、克制、结构紧凑，优先给出高质量书单、具体推荐理由和可执行阅读建议。',
+  },
+  {
+    id: 'concise',
+    label: '简洁直给',
+    prompt:
+      '你用简洁直给的语气回答。先给结论，再给必要理由，少铺垫，避免泛泛而谈。',
+  },
+  {
+    id: 'warm',
+    label: '温和陪伴',
+    prompt:
+      '你像耐心的读书陪伴者一样回答。语气温和、具体、低压力，帮助用户更容易开始阅读并持续读下去。',
+  },
+  {
+    id: 'criticalCoach',
+    label: '批判教练',
+    prompt:
+      '你像严格的读书教练一样回答。直接指出选择依据、取舍和潜在误区，给出更优读法和下一步行动。',
+  },
+] as const
+
+export type BookPersonaPresetId = (typeof BOOK_PERSONA_PRESETS)[number]['id']
+
+export type BookPersonaConfig = {
+  presetId: BookPersonaPresetId
+  customPrompt: string
+  useCustomPrompt: boolean
+}
+
 export const BOOK_PREFERENCE_CATEGORIES = [
   { value: '文学小说', label: '文学小说' },
   { value: '商业管理', label: '商业管理' },
@@ -31,8 +66,10 @@ export type BookAgentClientConfig = {
   wechatApiKey: string
   preferences: BookUserPreferences
   memory: BookMemorySettings
+  persona: BookPersonaConfig
 }
 
+export const DEFAULT_BOOK_PERSONA_PRESET_ID: BookPersonaPresetId = 'professional'
 export const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash'
 export const DEFAULT_OPENROUTER_BASE_URL =
   'https://openrouter.ai/api/v1/chat/completions'
@@ -54,6 +91,11 @@ export const createDefaultClientConfig = (): BookAgentClientConfig => ({
     enabled: true,
     includeInRecommendations: true,
     autoGenerateFromPrompt: true,
+  },
+  persona: {
+    presetId: DEFAULT_BOOK_PERSONA_PRESET_ID,
+    customPrompt: '',
+    useCustomPrompt: false,
   },
 })
 
@@ -83,6 +125,7 @@ export const loadClientConfig = (): BookAgentClientConfig => {
       wechatApiKey: stringValue(parsedConfig.wechatApiKey, ''),
       preferences: normalizePreferences(parsedConfig.preferences),
       memory: normalizeMemorySettings(parsedConfig.memory),
+      persona: normalizePersonaConfig(parsedConfig.persona),
     }
   } catch {
     return defaults
@@ -98,6 +141,20 @@ export const hasOpenRouterApiKey = (config: BookAgentClientConfig) =>
 
 export const hasWechatApiKey = (config: BookAgentClientConfig) =>
   config.wechatApiKey.trim().length > 0
+
+export const getBookPersonaPreset = (id: string) =>
+  BOOK_PERSONA_PRESETS.find((preset) => preset.id === id) ??
+  BOOK_PERSONA_PRESETS[0]
+
+export const getBookPersonaPrompt = (persona: BookPersonaConfig) => {
+  const customPrompt = persona.customPrompt.trim()
+
+  if (persona.useCustomPrompt && customPrompt.length > 0) {
+    return customPrompt
+  }
+
+  return getBookPersonaPreset(persona.presetId).prompt
+}
 
 const stringValue = (value: unknown, fallback: string) => {
   if (typeof value !== 'string') {
@@ -147,6 +204,40 @@ const isBookPreferenceCategory = (
 ): value is BookPreferenceCategory =>
   BOOK_PREFERENCE_CATEGORIES.some((category) => category.value === value)
 
+export const isBookPersonaPresetId = (
+  value: string,
+): value is BookPersonaPresetId =>
+  BOOK_PERSONA_PRESETS.some((preset) => preset.id === value)
+
+const normalizePersonaConfig = (value: unknown): BookPersonaConfig => {
+  const defaults = createDefaultClientConfig().persona
+
+  if (typeof value !== 'object' || value === null) {
+    return defaults
+  }
+
+  const settings = value as Partial<BookPersonaConfig>
+  const presetId = normalizePersonaPresetId(settings.presetId)
+
+  return {
+    presetId,
+    customPrompt: plainStringValue(settings.customPrompt),
+    useCustomPrompt: booleanValue(
+      settings.useCustomPrompt,
+      defaults.useCustomPrompt,
+    ),
+  }
+}
+
+const normalizePersonaPresetId = (value: unknown): BookPersonaPresetId => {
+  if (typeof value !== 'string') {
+    return DEFAULT_BOOK_PERSONA_PRESET_ID
+  }
+
+  const presetId = value.trim()
+  return isBookPersonaPresetId(presetId) ? presetId : DEFAULT_BOOK_PERSONA_PRESET_ID
+}
+
 const normalizeMemorySettings = (value: unknown): BookMemorySettings => {
   const defaults = createDefaultClientConfig().memory
 
@@ -168,6 +259,9 @@ const normalizeMemorySettings = (value: unknown): BookMemorySettings => {
     ),
   }
 }
+
+const plainStringValue = (value: unknown) =>
+  typeof value === 'string' ? value.trim() : ''
 
 const booleanValue = (value: unknown, fallback: boolean) =>
   typeof value === 'boolean' ? value : fallback

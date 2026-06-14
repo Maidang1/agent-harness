@@ -14,8 +14,10 @@ import { loadUserMemory } from './memory-store'
 import {
   createConversationId,
   deleteConversation,
+  listConversationSnapshots,
   listConversations,
   subscribeChats,
+  type ChatConversationSnapshot,
   type ChatSummary,
 } from './chat-store'
 
@@ -25,9 +27,15 @@ export const App = () => {
   const [agent] = useState(() => new OpenRouterBookAgent(clientConfig))
   const [conversationId, setConversationId] = useState(createConversationId)
   const [chats, setChats] = useState<ChatSummary[]>(() => listConversations())
+  const [conversationSnapshots, setConversationSnapshots] = useState<
+    ChatConversationSnapshot[]
+  >(() => listConversationSnapshots())
 
   useEffect(() => {
-    return subscribeChats(() => setChats(listConversations()))
+    return subscribeChats(() => {
+      setChats(listConversations())
+      setConversationSnapshots(listConversationSnapshots())
+    })
   }, [])
 
   useEffect(() => {
@@ -47,6 +55,10 @@ export const App = () => {
   useEffect(() => {
     agent.setMemoryChangeHandler(setUserMemory)
   }, [agent])
+
+  useEffect(() => {
+    agent.setUserMemory(userMemory)
+  }, [agent, userMemory])
 
   const updateClientConfig = useCallback(
     (config: BookAgentClientConfig) => {
@@ -79,6 +91,7 @@ export const App = () => {
       onClientConfigChange={updateClientConfig}
       onUserMemoryChange={updateUserMemory}
       chats={chats}
+      conversationSnapshots={conversationSnapshots}
       onNewChat={handleNewChat}
       onSelectChat={handleSelectChat}
       onDeleteChat={deleteConversation}

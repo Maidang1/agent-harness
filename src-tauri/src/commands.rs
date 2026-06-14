@@ -1,5 +1,4 @@
 use crate::{
-    chat::ChatMessage,
     config::{build_client_config, ClientConfig, RuntimeConfig},
     memory::{
         load_user_memory, merge_memory_extraction, preference_memory_from_user_memory,
@@ -7,9 +6,7 @@ use crate::{
         PreferenceMemory, UserMemory,
     },
     metadata::{app_metadata, AppMetadata},
-    openrouter::{
-        build_openrouter_messages, request_book_recommendation, request_memory_extraction,
-    },
+    openrouter::request_memory_extraction,
 };
 
 #[tauri::command]
@@ -56,8 +53,6 @@ pub(crate) async fn generate_user_memory_from_prompt(
 ) -> Result<UserMemory, String> {
     let RuntimeConfig {
         openrouter,
-        wechat_api_key: _wechat_api_key,
-        preferences: _preferences,
         memory: memory_settings,
     } = build_client_config(config)?;
     let user_path = user_memory_path(&app_handle)?;
@@ -83,28 +78,6 @@ pub(crate) async fn generate_user_memory_from_prompt(
 #[tauri::command]
 pub(crate) async fn get_app_metadata(app_handle: tauri::AppHandle) -> Result<AppMetadata, String> {
     Ok(app_metadata(&app_handle))
-}
-
-#[tauri::command]
-pub(crate) async fn recommend_books(
-    app_handle: tauri::AppHandle,
-    messages: Vec<ChatMessage>,
-    config: ClientConfig,
-) -> Result<String, String> {
-    let RuntimeConfig {
-        openrouter,
-        wechat_api_key: _wechat_api_key,
-        preferences,
-        memory: memory_settings,
-    } = build_client_config(config)?;
-    let user_path = user_memory_path(&app_handle)?;
-    let legacy_path = preference_memory_path(&app_handle)?;
-    let user_memory = load_user_memory(&user_path, &legacy_path)?;
-
-    let openrouter_messages =
-        build_openrouter_messages(messages, &user_memory, &preferences, &memory_settings);
-
-    request_book_recommendation(&openrouter, &openrouter_messages).await
 }
 
 fn current_timestamp_ms() -> i64 {

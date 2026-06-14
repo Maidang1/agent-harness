@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core'
 import {
   EventType,
   HttpAgent,
@@ -10,16 +9,21 @@ import {
 import { Observable, type Subscriber } from 'rxjs'
 import { type BookAgentClientConfig } from '../client-config'
 import { generateUserMemoryFromPrompt } from '../memory-store'
-import { type UserMemoryView } from '../memory-data'
+import {
+  createDefaultUserMemory,
+  type UserMemoryView,
+} from '../memory-data'
+import {
+  buildBookRecommendationMessages,
+  createOpenRouterChatClient,
+  streamOpenRouterChat,
+  type BookRecommendationInputMessage,
+} from '../openrouter-client'
 import { contentToText } from '../text-content.ts'
-
-type TauriMessage = {
-  role: 'user' | 'assistant'
-  content: string
-}
 
 export class OpenRouterBookAgent extends HttpAgent {
   private clientConfig: BookAgentClientConfig
+  private userMemory: UserMemoryView = createDefaultUserMemory()
   private onMemoryChange?: (memory: UserMemoryView) => void
 
   constructor(clientConfig: BookAgentClientConfig) {
@@ -32,6 +36,10 @@ export class OpenRouterBookAgent extends HttpAgent {
 
   setClientConfig(config: BookAgentClientConfig) {
     this.clientConfig = config
+  }
+
+  setUserMemory(memory: UserMemoryView) {
+    this.userMemory = memory
   }
 
   setMemoryChangeHandler(handler: (memory: UserMemoryView) => void) {
@@ -72,34 +80,43 @@ export class OpenRouterBookAgent extends HttpAgent {
     })
 
     try {
-      const { openrouter, wechatApiKey, preferences } = this.clientConfig
+      const { openrouter } = this.clientConfig
 
       if (openrouter.apiKey.trim().length === 0) {
         throw new Error('请先在右上角配置 OpenRouter API Key。')
       }
 
-      const tauriMessages = toTauriMessages(input.messages)
-      const latestUserPrompt = getLatestUserPrompt(tauriMessages)
-      const response = await invoke<string>('recommend_books', {
-        messages: tauriMessages,
-        config: {
-          openrouter: {
-            apiKey: openrouter.apiKey,
-            model: openrouter.model,
-            baseUrl: openrouter.baseUrl,
-          },
-          wechatApiKey,
-          preferences,
-          memory: this.clientConfig.memory,
-        },
-      })
+      const inputMessages = toBookMessages(input.messages)
+      const latestUserPrompt = getLatestUserPrompt(inputMessages)
+      const recommendationMessages = buildBookRecommendationMessages(
+        inputMessages,
+        this.clientConfig,
+        this.userMemory,
+      )
+      const openrouterClient = createOpenRouterChatClient(openrouter)
+      let hasContent = false
 
-      if (signal.aborted) {
-        subscriber.complete()
-        return
+      for await (const event of streamOpenRouterChat(
+        openrouterClient,
+        openrouter,
+        recommendationMessages,
+        signal,
+      )) {
+        if (signal.aborted) {
+          subscriber.complete()
+          return
+        }
+
+        if (event.type === 'content') {
+          hasContent = true
+          emitTextDelta(event.delta, messageId, subscriber)
+        }
       }
 
-      await streamText(response, messageId, subscriber, signal)
+      if (!hasContent) {
+        throw new Error('OpenRouter 响应中没有可展示内容。')
+      }
+
       this.queueMemoryGeneration(latestUserPrompt)
     } catch (error) {
       if (signal.aborted) {
@@ -107,7 +124,7 @@ export class OpenRouterBookAgent extends HttpAgent {
         return
       }
 
-      await streamText(formatError(error), messageId, subscriber, signal)
+      emitTextDelta(formatError(error), messageId, subscriber)
     }
 
     subscriber.next({ type: EventType.TEXT_MESSAGE_END, messageId })
@@ -140,7 +157,7 @@ export class OpenRouterBookAgent extends HttpAgent {
   }
 }
 
-const toTauriMessages = (messages: Message[]): TauriMessage[] =>
+const toBookMessages = (messages: Message[]): BookRecommendationInputMessage[] =>
   messages
     .filter((message) => message.role === 'user' || message.role === 'assistant')
     .map((message) => ({
@@ -149,54 +166,23 @@ const toTauriMessages = (messages: Message[]): TauriMessage[] =>
     }))
     .filter((message) => message.content.trim().length > 0)
 
-const getLatestUserPrompt = (messages: TauriMessage[]) =>
+const getLatestUserPrompt = (messages: BookRecommendationInputMessage[]) =>
   [...messages]
     .reverse()
     .find((message) => message.role === 'user')
     ?.content.trim() ?? ''
 
-const streamText = async (
-  text: string,
+const emitTextDelta = (
+  delta: string,
   messageId: string,
   subscriber: Subscriber<BaseEvent>,
-  signal: AbortSignal,
 ) => {
-  for (const chunk of splitResponse(text)) {
-    if (signal.aborted) {
-      return
-    }
-
-    subscriber.next({
-      type: EventType.TEXT_MESSAGE_CONTENT,
-      messageId,
-      delta: chunk,
-    })
-    await delay(18, signal)
-  }
-}
-
-const splitResponse = (response: string) => {
-  const chunks = response.match(/(.|\n){1,34}/g)
-  return chunks ?? [response]
-}
-
-const delay = (ms: number, signal: AbortSignal) =>
-  new Promise<void>((resolve, reject) => {
-    if (signal.aborted) {
-      resolve()
-      return
-    }
-
-    const timer = window.setTimeout(resolve, ms)
-    signal.addEventListener(
-      'abort',
-      () => {
-        window.clearTimeout(timer)
-        reject(new DOMException('Run aborted', 'AbortError'))
-      },
-      { once: true },
-    )
+  subscriber.next({
+    type: EventType.TEXT_MESSAGE_CONTENT,
+    messageId,
+    delta,
   })
+}
 
 const formatError = (error: unknown) => {
   const message =

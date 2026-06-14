@@ -2,35 +2,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chat::ChatMessage,
-    config::{MemorySettings, OpenRouterConfig, UserPreferences},
+    config::OpenRouterConfig,
     memory::{parse_memory_extraction, MemoryExtraction, ReadingPlanStatus, UserMemory},
 };
 
 #[cfg(test)]
 use crate::memory::{EvidenceMemory, ProfileMemory, ReadingPlanMemory};
 
-const SYSTEM_PROMPT: &str = r#"你是一个专业的读书推荐助手，名为「读书推荐 Agent」。
-
-你的能力：
-- 基于用户的阅读需求、兴趣、目标推荐合适的书籍
-- 提供具体的推荐理由和阅读建议
-- 如果用户追问或补充需求，基于对话历史给出更精准的推荐
-
-回复规范：
-- 使用自然、友好的对话语气
-- 推荐书籍时，每本书给出：书名、作者、推荐理由、适合人群、阅读建议
-- 回复保持简洁有力
-
-推荐标准：
-- 和用户需求高度相关
-- 推荐理由具体
-- 适合用户当前的阅读目标"#;
-
 #[derive(Debug, Serialize)]
-pub(crate) struct OpenRouterMessage {
-    pub(crate) role: String,
-    pub(crate) content: String,
+struct OpenRouterMessage {
+    role: String,
+    content: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -46,52 +28,6 @@ struct OpenRouterChoice {
 #[derive(Debug, Deserialize)]
 struct OpenRouterAssistantMessage {
     content: Option<Value>,
-}
-
-pub(crate) fn build_openrouter_messages(
-    messages: Vec<ChatMessage>,
-    user_memory: &UserMemory,
-    preferences: &UserPreferences,
-    memory_settings: &MemorySettings,
-) -> Vec<OpenRouterMessage> {
-    let mut openrouter_messages = vec![OpenRouterMessage {
-        role: "system".to_string(),
-        content: SYSTEM_PROMPT.to_string(),
-    }];
-
-    if let Some(memory_context) = build_memory_context(user_memory, preferences, memory_settings) {
-        openrouter_messages.push(OpenRouterMessage {
-            role: "system".to_string(),
-            content: memory_context,
-        });
-    }
-
-    openrouter_messages.extend(messages.into_iter().filter_map(|message| {
-        let role = match message.role.as_str() {
-            "user" => "user",
-            "assistant" => "assistant",
-            _ => return None,
-        };
-        let content = message.content.trim();
-
-        if content.is_empty() {
-            None
-        } else {
-            Some(OpenRouterMessage {
-                role: role.to_string(),
-                content: content.to_string(),
-            })
-        }
-    }));
-
-    openrouter_messages
-}
-
-pub(crate) async fn request_book_recommendation(
-    config: &OpenRouterConfig,
-    messages: &[OpenRouterMessage],
-) -> Result<String, String> {
-    request_chat_completion(config, messages).await
 }
 
 pub(crate) async fn request_memory_extraction(
@@ -184,27 +120,12 @@ async fn request_chat_completion(
         .ok_or_else(|| "OpenRouter 响应中没有可展示内容。".to_string())
 }
 
-fn build_memory_context(
-    user_memory: &UserMemory,
-    preferences: &UserPreferences,
-    memory_settings: &MemorySettings,
-) -> Option<String> {
-    if !memory_settings.enabled || !memory_settings.include_in_recommendations {
-        return None;
-    }
-
+fn build_memory_context(user_memory: &UserMemory) -> Option<String> {
     let mut memory_lines = Vec::new();
     let summary = user_memory.profile.summary.trim();
 
     if !summary.is_empty() {
         memory_lines.push(format!("偏好摘要：{summary}"));
-    }
-
-    if !preferences.favorite_categories.is_empty() {
-        memory_lines.push(format!(
-            "显式偏好分类：{}。",
-            preferences.favorite_categories.join("、")
-        ));
     }
 
     if !user_memory.profile.learned_categories.is_empty() {
@@ -264,11 +185,7 @@ fn build_memory_context(
 }
 
 fn build_memory_snapshot(user_memory: &UserMemory) -> String {
-    let context = build_memory_context(
-        user_memory,
-        &UserPreferences::default(),
-        &MemorySettings::default(),
-    );
+    let context = build_memory_context(user_memory);
 
     context.unwrap_or_else(|| "空".to_string())
 }
@@ -302,22 +219,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn openrouter_messages_add_structured_memory_system_message() {
-        let messages = build_openrouter_messages(
-            vec![
-                ChatMessage {
-                    role: "user".to_string(),
-                    content: "之前想看压力管理".to_string(),
-                },
-                ChatMessage {
-                    role: "assistant".to_string(),
-                    content: "可以从心理成长类开始。".to_string(),
-                },
-                ChatMessage {
-                    role: "user".to_string(),
-                    content: "现在推荐一本适合通勤读的书".to_string(),
-                },
-            ],
+    fn memory_extraction_messages_include_structured_memory_snapshot() {
+        let messages = build_memory_extraction_messages(
+            "现在推荐一本适合通勤读的书",
             &UserMemory {
                 profile: ProfileMemory {
                     summary: "偏好案例型心理成长和商业管理书".to_string(),
@@ -337,47 +241,27 @@ mod tests {
                 },
                 ..UserMemory::default()
             },
-            &UserPreferences {
-                favorite_categories: vec!["商业管理".to_string()],
-            },
-            &MemorySettings::default(),
         );
 
         assert_eq!(messages[0].role, "system");
-        assert_eq!(messages[1].role, "system");
+        assert_eq!(messages[1].role, "user");
+        assert!(messages[0].content.contains("长期记忆提取器"));
         assert!(messages[1].content.contains("长期用户记忆"));
-        assert!(messages[1].content.contains("显式偏好分类：商业管理"));
+        assert!(messages[1]
+            .content
+            .contains("偏好案例型心理成长和商业管理书"));
         assert!(messages[1].content.contains("模型学习分类：心理成长"));
         assert!(messages[1].content.contains("压力管理阅读计划"));
-        assert_eq!(messages[2].content, "之前想看压力管理");
-        assert_eq!(messages[4].content, "现在推荐一本适合通勤读的书");
+        assert!(messages[1].content.contains("之前想看压力管理"));
+        assert!(messages[1].content.contains("现在推荐一本适合通勤读的书"));
     }
 
     #[test]
-    fn openrouter_messages_skip_memory_when_disabled() {
-        let messages = build_openrouter_messages(
-            vec![ChatMessage {
-                role: "user".to_string(),
-                content: "推荐一本适合周末读的书".to_string(),
-            }],
-            &UserMemory {
-                profile: ProfileMemory {
-                    summary: "偏好文学小说".to_string(),
-                    ..ProfileMemory::default()
-                },
-                ..UserMemory::default()
-            },
-            &UserPreferences {
-                favorite_categories: vec!["文学小说".to_string(), "心理成长".to_string()],
-            },
-            &MemorySettings {
-                enabled: false,
-                include_in_recommendations: true,
-                auto_generate_from_prompt: true,
-            },
-        );
+    fn memory_extraction_messages_use_empty_snapshot_for_empty_memory() {
+        let messages =
+            build_memory_extraction_messages("推荐一本适合周末读的书", &UserMemory::default());
 
-        assert_eq!(messages.len(), 2);
-        assert_eq!(messages[1].content, "推荐一本适合周末读的书");
+        assert!(messages[1].content.contains("现有记忆：\n空"));
+        assert!(messages[1].content.contains("推荐一本适合周末读的书"));
     }
 }

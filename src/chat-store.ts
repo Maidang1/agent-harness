@@ -12,6 +12,20 @@ export type ChatSummary = {
   updatedAt: number
 }
 
+export type ChatAnalyticsMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: number
+}
+
+export type ChatConversationSnapshot = {
+  id: string
+  title: string
+  updatedAt: number
+  messages: ChatAnalyticsMessage[]
+}
+
 type StoredConversation = {
   id: string
   title: string
@@ -95,6 +109,18 @@ export const listConversations = (): ChatSummary[] =>
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt)
 
+export const listConversationSnapshots = (): ChatConversationSnapshot[] =>
+  readState()
+    .conversations.map((conversation) => ({
+      id: conversation.id,
+      title: conversation.title?.trim() || DEFAULT_TITLE,
+      updatedAt: conversation.updatedAt ?? conversation.createdAt ?? 0,
+      messages: conversation.repository.messages
+        .map(toAnalyticsMessage)
+        .filter((message): message is ChatAnalyticsMessage => message !== null),
+    }))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+
 export const deleteConversation = (id: string) => {
   const state = readState()
   const next = state.conversations.filter((conversation) => conversation.id !== id)
@@ -112,6 +138,39 @@ const reviveMessage = (message: ThreadMessage): ThreadMessage => {
       : new Date(message.createdAt as unknown as string)
 
   return { ...message, createdAt }
+}
+
+const toAnalyticsMessage = (
+  item: ExportedMessageRepositoryItem,
+): ChatAnalyticsMessage | null => {
+  const { message } = item
+
+  if (message.role !== 'user' && message.role !== 'assistant') {
+    return null
+  }
+
+  const content = contentToText(message.content).trim()
+
+  if (!content) {
+    return null
+  }
+
+  return {
+    id: typeof message.id === 'string' ? message.id : '',
+    role: message.role,
+    content,
+    createdAt: timestampValue(message.createdAt),
+  }
+}
+
+const timestampValue = (value: unknown) => {
+  const date =
+    value instanceof Date || typeof value === 'string' || typeof value === 'number'
+      ? new Date(value)
+      : null
+  const timestamp = date?.getTime() ?? 0
+
+  return Number.isFinite(timestamp) ? timestamp : 0
 }
 
 const loadRepository = (id: string): ExportedMessageRepository => {

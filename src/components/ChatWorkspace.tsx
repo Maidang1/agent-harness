@@ -5,6 +5,7 @@ import { OpenRouterBookAgent } from '../agents/openrouter-book-agent'
 import { hasOpenRouterApiKey, type BookAgentClientConfig } from '../client-config'
 import {
   createChatHistoryAdapter,
+  type ChatConversationSnapshot,
   type ChatSummary,
 } from '../chat-store'
 import { type UserMemoryView } from '../memory-data'
@@ -18,6 +19,7 @@ type ChatWorkspaceProps = {
   onClientConfigChange: (config: BookAgentClientConfig) => void
   onUserMemoryChange: (memory: UserMemoryView) => void
   chats: ChatSummary[]
+  conversationSnapshots: ChatConversationSnapshot[]
   onNewChat: () => void
   onSelectChat: (id: string) => void
   onDeleteChat: (id: string) => void
@@ -31,6 +33,7 @@ export const ChatWorkspace = ({
   onClientConfigChange,
   onUserMemoryChange,
   chats,
+  conversationSnapshots,
   onNewChat,
   onSelectChat,
   onDeleteChat,
@@ -47,6 +50,7 @@ export const ChatWorkspace = ({
         onUserMemoryChange={onUserMemoryChange}
         isOpenRouterConfigured={hasOpenRouterApiKey(clientConfig)}
         chats={chats}
+        conversationSnapshots={conversationSnapshots}
         activeChatId={conversationId}
         onNewChat={onNewChat}
         onSelectChat={onSelectChat}
