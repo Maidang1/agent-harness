@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  color: #141413;
+  background: #f5f4ed;
+  font-family:
+    "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+    -apple-system, sans-serif;
+  --page-bg: #f5f4ed;
+  --paper: #faf9f5;
+  --ink: #141413;
+  --ink-soft: #3d3d3a;
+  --muted: #6b6a64;
+  --muted-light: #8a8880;
+  --line: #e8e6dc;
+  --line-strong: #dbd8cc;
+  --brand: #1b365d;
+  --brand-strong: #142a4a;
+  --brand-tint: #eef2f7;
+  --error: #b53333;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  background: var(--page-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    linear-gradient(90deg, rgba(20, 20, 19, 0.02) 1px, transparent 1px),
+    linear-gradient(rgba(20, 20, 19, 0.015) 1px, transparent 1px),
+    var(--page-bg);
+  background-size:
+    42px 42px,
+    42px 42px,
+    auto;
+}
+
+::selection {
+  background: rgba(27, 54, 93, 0.15);
+}
+
+button,
+textarea {
+  font: inherit;
+}
