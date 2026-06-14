@@ -8,6 +8,7 @@ import {
   type RunAgentInput,
 } from '@ag-ui/client'
 import { Observable, type Subscriber } from 'rxjs'
+import { type BookAgentClientConfig } from '../client-config'
 
 type TauriMessage = {
   role: 'user' | 'assistant'
@@ -15,11 +16,18 @@ type TauriMessage = {
 }
 
 export class OpenRouterBookAgent extends HttpAgent {
-  constructor() {
+  private clientConfig: BookAgentClientConfig
+
+  constructor(clientConfig: BookAgentClientConfig) {
     super({
       url: 'local://openrouter',
       description: 'Local Tauri OpenRouter book recommendation agent',
     })
+    this.clientConfig = clientConfig
+  }
+
+  setClientConfig(config: BookAgentClientConfig) {
+    this.clientConfig = config
   }
 
   run(input: RunAgentInput): Observable<BaseEvent> {
@@ -56,8 +64,22 @@ export class OpenRouterBookAgent extends HttpAgent {
     })
 
     try {
+      const { openrouter, wechatApiKey } = this.clientConfig
+
+      if (openrouter.apiKey.trim().length === 0) {
+        throw new Error('请先在右上角配置 OpenRouter API Key。')
+      }
+
       const response = await invoke<string>('recommend_books', {
         messages: toTauriMessages(input.messages),
+        config: {
+          openrouter: {
+            apiKey: openrouter.apiKey,
+            model: openrouter.model,
+            baseUrl: openrouter.baseUrl,
+          },
+          wechatApiKey,
+        },
       })
 
       if (signal.aborted) {

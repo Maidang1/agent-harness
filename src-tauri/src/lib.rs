@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{env, fs, path::PathBuf};
 
 const SYSTEM_PROMPT: &str = r#"你是一个专业的读书推荐助手，名为「读书推荐 Agent」。
 
@@ -19,10 +18,41 @@ const SYSTEM_PROMPT: &str = r#"你是一个专业的读书推荐助手，名为�
 - 推荐理由具体
 - 适合用户当前的阅读目标"#;
 
+const DEFAULT_OPENROUTER_MODEL: &str = "deepseek/deepseek-v4-flash";
+const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
+
 #[derive(Debug, Deserialize)]
 struct ChatMessage {
     role: String,
     content: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ClientConfig {
+    openrouter: ClientOpenRouterConfig,
+    wechat_api_key: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ClientOpenRouterConfig {
+    api_key: String,
+    model: Option<String>,
+    base_url: Option<String>,
+}
+
+#[derive(Debug)]
+struct RuntimeConfig {
+    openrouter: OpenRouterConfig,
+    wechat_api_key: Option<String>,
+}
+
+#[derive(Debug)]
+struct OpenRouterConfig {
+    api_key: String,
+    model: String,
+    base_url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -47,14 +77,14 @@ struct OpenRouterAssistantMessage {
 }
 
 #[tauri::command]
-async fn recommend_books(messages: Vec<ChatMessage>) -> Result<String, String> {
-    let api_key = read_local_var("OPENROUTER_API_KEY").ok_or_else(|| {
-        "缺少 OPENROUTER_API_KEY。请在环境变量或项目根目录 .dev.vars 中配置。".to_string()
-    })?;
-    let model = read_local_var("OPENROUTER_MODEL")
-        .unwrap_or_else(|| "deepseek/deepseek-v4-flash".to_string());
-    let base_url = read_local_var("OPENROUTER_BASE_URL")
-        .unwrap_or_else(|| "https://openrouter.ai/api/v1/chat/completions".to_string());
+async fn recommend_books(
+    messages: Vec<ChatMessage>,
+    config: ClientConfig,
+) -> Result<String, String> {
+    let RuntimeConfig {
+        openrouter: openrouter_config,
+        wechat_api_key: _wechat_api_key,
+    } = build_client_config(config)?;
 
     let mut openrouter_messages = vec![OpenRouterMessage {
         role: "system".to_string(),
@@ -81,13 +111,13 @@ async fn recommend_books(messages: Vec<ChatMessage>) -> Result<String, String> {
 
     let client = reqwest::Client::new();
     let response = client
-        .post(base_url)
-        .bearer_auth(api_key)
+        .post(&openrouter_config.base_url)
+        .bearer_auth(&openrouter_config.api_key)
         .header("Content-Type", "application/json")
         .header("HTTP-Referer", "tauri://book-agent")
         .header("X-Title", "Book Agent")
         .json(&serde_json::json!({
-            "model": model,
+            "model": openrouter_config.model,
             "messages": openrouter_messages,
             "stream": false,
         }))
@@ -120,6 +150,44 @@ async fn recommend_books(messages: Vec<ChatMessage>) -> Result<String, String> {
         .ok_or_else(|| "OpenRouter 响应中没有可展示内容。".to_string())
 }
 
+fn build_client_config(config: ClientConfig) -> Result<RuntimeConfig, String> {
+    Ok(RuntimeConfig {
+        openrouter: build_openrouter_config(config.openrouter)?,
+        wechat_api_key: optional_secret_value(config.wechat_api_key),
+    })
+}
+
+fn build_openrouter_config(config: ClientOpenRouterConfig) -> Result<OpenRouterConfig, String> {
+    let api_key = config.api_key.trim().to_string();
+
+    if api_key.is_empty() {
+        return Err("请在客户端配置 OpenRouter API Key。".to_string());
+    }
+
+    Ok(OpenRouterConfig {
+        api_key,
+        model: optional_config_value(config.model, DEFAULT_OPENROUTER_MODEL),
+        base_url: optional_config_value(config.base_url, DEFAULT_OPENROUTER_BASE_URL),
+    })
+}
+
+fn optional_config_value(value: Option<String>, default_value: &str) -> String {
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(default_value)
+        .to_string()
+}
+
+fn optional_secret_value(value: Option<String>) -> Option<String> {
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
 fn value_to_text(value: &Value) -> Option<String> {
     match value {
         Value::String(text) => Some(text.clone()),
@@ -134,67 +202,6 @@ fn value_to_text(value: &Value) -> Option<String> {
     }
 }
 
-fn read_local_var(name: &str) -> Option<String> {
-    env::var(name)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .or_else(|| read_dev_vars(name))
-}
-
-fn read_dev_vars(name: &str) -> Option<String> {
-    dev_var_paths().into_iter().find_map(|path| {
-        let contents = fs::read_to_string(path).ok()?;
-
-        contents.lines().find_map(|line| parse_env_line(line, name))
-    })
-}
-
-fn dev_var_paths() -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    if let Ok(current_dir) = env::current_dir() {
-        paths.push(current_dir.join(".dev.vars"));
-        paths.push(current_dir.join("..").join(".dev.vars"));
-    }
-
-    if let Ok(exe_path) = env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            paths.push(exe_dir.join(".dev.vars"));
-            paths.push(exe_dir.join("..").join(".dev.vars"));
-            paths.push(exe_dir.join("..").join("..").join(".dev.vars"));
-        }
-    }
-
-    paths
-}
-
-fn parse_env_line(line: &str, name: &str) -> Option<String> {
-    let trimmed = line.trim();
-
-    if trimmed.is_empty() || trimmed.starts_with('#') {
-        return None;
-    }
-
-    let (key, value) = trimmed.split_once('=')?;
-
-    if key.trim() != name {
-        return None;
-    }
-
-    let value = value
-        .trim()
-        .trim_matches('"')
-        .trim_matches('\'')
-        .to_string();
-
-    if value.is_empty() {
-        None
-    } else {
-        Some(value)
-    }
-}
-
 fn truncate_error_body(body: &str) -> String {
     const MAX_LEN: usize = 600;
 
@@ -202,6 +209,65 @@ fn truncate_error_body(body: &str) -> String {
         body.to_string()
     } else {
         format!("{}...", body.chars().take(MAX_LEN).collect::<String>())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openrouter_config_requires_client_api_key() {
+        let error = build_openrouter_config(ClientOpenRouterConfig {
+            api_key: "   ".to_string(),
+            model: None,
+            base_url: None,
+        })
+        .unwrap_err();
+
+        assert_eq!(error, "请在客户端配置 OpenRouter API Key。");
+    }
+
+    #[test]
+    fn openrouter_config_trims_client_values() {
+        let config = build_openrouter_config(ClientOpenRouterConfig {
+            api_key: "  sk-test  ".to_string(),
+            model: Some("  deepseek/test  ".to_string()),
+            base_url: Some("  https://example.com/api/chat  ".to_string()),
+        })
+        .unwrap();
+
+        assert_eq!(config.api_key, "sk-test");
+        assert_eq!(config.model, "deepseek/test");
+        assert_eq!(config.base_url, "https://example.com/api/chat");
+    }
+
+    #[test]
+    fn openrouter_config_fills_optional_defaults() {
+        let config = build_openrouter_config(ClientOpenRouterConfig {
+            api_key: "sk-test".to_string(),
+            model: Some(" ".to_string()),
+            base_url: None,
+        })
+        .unwrap();
+
+        assert_eq!(config.model, DEFAULT_OPENROUTER_MODEL);
+        assert_eq!(config.base_url, DEFAULT_OPENROUTER_BASE_URL);
+    }
+
+    #[test]
+    fn client_config_trims_wechat_api_key() {
+        let config = build_client_config(ClientConfig {
+            openrouter: ClientOpenRouterConfig {
+                api_key: "sk-test".to_string(),
+                model: None,
+                base_url: None,
+            },
+            wechat_api_key: Some("  wx-test  ".to_string()),
+        })
+        .unwrap();
+
+        assert_eq!(config.wechat_api_key.as_deref(), Some("wx-test"));
     }
 }
 

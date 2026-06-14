@@ -8,7 +8,7 @@ React + Vite frontend with a local Tauri AG-UI adapter, OpenRouter calls, and a 
 corepack pnpm install
 ```
 
-Set `OPENROUTER_API_KEY` in the environment or in `.dev.vars` at the project root. Optional: set `OPENROUTER_MODEL`; the default model is `deepseek/deepseek-v4-flash`.
+Use the settings button in the app header to configure API keys on the client. The panel stores OpenRouter API Key, OpenRouter model, OpenRouter endpoint, and WeChat API Key in local browser storage.
 
 ## Web Development
 
