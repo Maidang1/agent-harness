@@ -4,6 +4,17 @@ export type OpenRouterClientConfig = {
   baseUrl: string
 }
 
+export type BookAgentProvider = 'openrouter' | 'codex'
+
+export type CodexSandboxMode = 'read-only'
+
+export type CodexClientConfig = {
+  model: string
+  codexPath: string
+  cwd: string
+  sandbox: CodexSandboxMode
+}
+
 export const BOOK_PERSONA_PRESETS = [
   {
     id: 'professional',
@@ -62,7 +73,9 @@ export type BookMemorySettings = {
 }
 
 export type BookAgentClientConfig = {
+  provider: BookAgentProvider
   openrouter: OpenRouterClientConfig
+  codex: CodexClientConfig
   wechatApiKey: string
   preferences: BookUserPreferences
   memory: BookMemorySettings
@@ -73,15 +86,25 @@ export const DEFAULT_BOOK_PERSONA_PRESET_ID: BookPersonaPresetId = 'professional
 export const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash'
 export const DEFAULT_OPENROUTER_BASE_URL =
   'https://openrouter.ai/api/v1/chat/completions'
+export const DEFAULT_CODEX_PATH = 'codex'
+export const DEFAULT_CODEX_CWD = ''
+export const DEFAULT_CODEX_SANDBOX: CodexSandboxMode = 'read-only'
 
 const STORAGE_KEY = 'book-agent.client-config'
 const LEGACY_OPENROUTER_STORAGE_KEY = 'book-agent.openrouter-config'
 
 export const createDefaultClientConfig = (): BookAgentClientConfig => ({
+  provider: 'openrouter',
   openrouter: {
     apiKey: '',
     model: DEFAULT_OPENROUTER_MODEL,
     baseUrl: DEFAULT_OPENROUTER_BASE_URL,
+  },
+  codex: {
+    model: '',
+    codexPath: DEFAULT_CODEX_PATH,
+    cwd: DEFAULT_CODEX_CWD,
+    sandbox: DEFAULT_CODEX_SANDBOX,
   },
   wechatApiKey: '',
   preferences: {
@@ -117,11 +140,13 @@ export const loadClientConfig = (): BookAgentClientConfig => {
     const openrouterConfig = parsedConfig.openrouter ?? parsedConfig
 
     return {
+      provider: normalizeProvider(parsedConfig.provider),
       openrouter: {
         apiKey: stringValue(openrouterConfig.apiKey, ''),
         model: stringValue(openrouterConfig.model, DEFAULT_OPENROUTER_MODEL),
         baseUrl: stringValue(openrouterConfig.baseUrl, DEFAULT_OPENROUTER_BASE_URL),
       },
+      codex: normalizeCodexConfig(parsedConfig.codex),
       wechatApiKey: stringValue(parsedConfig.wechatApiKey, ''),
       preferences: normalizePreferences(parsedConfig.preferences),
       memory: normalizeMemorySettings(parsedConfig.memory),
@@ -138,6 +163,9 @@ export const saveClientConfig = (config: BookAgentClientConfig) => {
 
 export const hasOpenRouterApiKey = (config: BookAgentClientConfig) =>
   config.openrouter.apiKey.trim().length > 0
+
+export const isBookAgentConfigured = (config: BookAgentClientConfig) =>
+  config.provider === 'codex' || hasOpenRouterApiKey(config)
 
 export const hasWechatApiKey = (config: BookAgentClientConfig) =>
   config.wechatApiKey.trim().length > 0
@@ -163,6 +191,34 @@ const stringValue = (value: unknown, fallback: string) => {
 
   const trimmedValue = value.trim()
   return trimmedValue || fallback
+}
+
+const plainStringValue = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value.trim()
+}
+
+const normalizeProvider = (value: unknown): BookAgentProvider =>
+  value === 'codex' ? 'codex' : 'openrouter'
+
+const normalizeCodexConfig = (value: unknown): CodexClientConfig => {
+  const defaults = createDefaultClientConfig().codex
+
+  if (typeof value !== 'object' || value === null) {
+    return defaults
+  }
+
+  const settings = value as Partial<CodexClientConfig>
+
+  return {
+    model: plainStringValue(settings.model),
+    codexPath: stringValue(settings.codexPath, DEFAULT_CODEX_PATH),
+    cwd: plainStringValue(settings.cwd),
+    sandbox: settings.sandbox === 'read-only' ? 'read-only' : DEFAULT_CODEX_SANDBOX,
+  }
 }
 
 const normalizePreferences = (value: unknown): BookUserPreferences => {
@@ -259,9 +315,6 @@ const normalizeMemorySettings = (value: unknown): BookMemorySettings => {
     ),
   }
 }
-
-const plainStringValue = (value: unknown) =>
-  typeof value === 'string' ? value.trim() : ''
 
 const booleanValue = (value: unknown, fallback: boolean) =>
   typeof value === 'boolean' ? value : fallback

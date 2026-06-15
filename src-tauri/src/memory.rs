@@ -5,8 +5,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
+use tokio::sync::{Mutex, MutexGuard};
 
-pub(crate) const USER_MEMORY_SCHEMA_VERSION: u32 = 1;
+pub(crate) const USER_MEMORY_SCHEMA_VERSION: u32 = 2;
 
 const USER_MEMORY_FILE_NAME: &str = "user-memory.json";
 const PREFERENCE_MEMORY_FILE_NAME: &str = "preference-memory.json";
@@ -47,6 +48,17 @@ const CATEGORY_RULES: &[PreferenceCategoryRule] = &[
     },
 ];
 
+#[derive(Default)]
+pub(crate) struct MemoryState {
+    lock: Mutex<()>,
+}
+
+impl MemoryState {
+    pub(crate) async fn lock(&self) -> MutexGuard<'_, ()> {
+        self.lock.lock().await
+    }
+}
+
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PreferenceMemory {
@@ -65,6 +77,8 @@ pub(crate) struct UserMemory {
     pub(crate) plans: Vec<ReadingPlanMemory>,
     #[serde(default)]
     pub(crate) evidence: EvidenceMemory,
+    #[serde(default)]
+    pub(crate) meta: MemoryMeta,
 }
 
 impl Default for UserMemory {
@@ -74,6 +88,7 @@ impl Default for UserMemory {
             profile: ProfileMemory::default(),
             plans: Vec::new(),
             evidence: EvidenceMemory::default(),
+            meta: MemoryMeta::default(),
         }
     }
 }
@@ -83,6 +98,10 @@ impl Default for UserMemory {
 pub(crate) struct ProfileMemory {
     #[serde(default)]
     pub(crate) summary: String,
+    #[serde(default)]
+    pub(crate) user_summary: String,
+    #[serde(default)]
+    pub(crate) auto_summary: String,
     #[serde(default)]
     pub(crate) learned_categories: Vec<String>,
     #[serde(default)]
@@ -94,6 +113,29 @@ pub(crate) struct ProfileMemory {
 pub(crate) struct EvidenceMemory {
     #[serde(default)]
     pub(crate) recent_prompts: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MemoryMeta {
+    #[serde(default)]
+    pub(crate) last_learning_status: Option<LearningStatusMemory>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LearningStatusMemory {
+    pub(crate) status: LearningStatus,
+    pub(crate) message: String,
+    pub(crate) updated_at: i64,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum LearningStatus {
+    Success,
+    Failed,
+    Skipped,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -266,7 +308,7 @@ pub(crate) fn update_preference_memory(
 pub(crate) fn preference_memory_from_user_memory(memory: &UserMemory) -> PreferenceMemory {
     PreferenceMemory {
         queries: memory.evidence.recent_prompts.clone(),
-        summary: memory.profile.summary.clone(),
+        summary: effective_profile_summary(&memory.profile),
     }
 }
 
@@ -278,17 +320,17 @@ pub(crate) fn merge_memory_extraction(
 ) {
     *memory = normalize_user_memory(memory.clone());
 
-    if let Some(summary) = extraction.preference_summary {
-        let summary = normalize_memory_text(&summary, MAX_SUMMARY_CHARS);
+    if let Some(auto_summary) = extraction.preference_summary {
+        let auto_summary = normalize_memory_text(&auto_summary, MAX_SUMMARY_CHARS);
 
-        if !summary.is_empty() {
-            memory.profile.summary = summary;
+        if !auto_summary.is_empty() {
+            memory.profile.auto_summary = auto_summary;
         }
     }
 
     extend_unique(
         &mut memory.profile.learned_categories,
-        extraction.learned_categories,
+        normalize_learned_categories(extraction.learned_categories),
         usize::MAX,
         MAX_NOTE_CHARS,
     );
@@ -319,6 +361,31 @@ pub(crate) fn merge_memory_extraction(
     *memory = normalize_user_memory(memory.clone());
 }
 
+pub(crate) fn mark_learning_status(
+    memory: &mut UserMemory,
+    status: LearningStatus,
+    message: impl Into<String>,
+    updated_at: i64,
+) {
+    memory.meta.last_learning_status = Some(LearningStatusMemory {
+        status,
+        message: normalize_memory_text(&message.into(), MAX_NOTE_CHARS),
+        updated_at: updated_at.max(0),
+    });
+}
+
+pub(crate) fn effective_profile_summary(profile: &ProfileMemory) -> String {
+    let user_summary = profile.user_summary.trim();
+    let auto_summary = profile.auto_summary.trim();
+
+    match (user_summary.is_empty(), auto_summary.is_empty()) {
+        (false, false) => format!("{user_summary}；{auto_summary}"),
+        (false, true) => user_summary.to_string(),
+        (true, false) => auto_summary.to_string(),
+        (true, true) => profile.summary.trim().to_string(),
+    }
+}
+
 pub(crate) fn parse_memory_extraction(content: &str) -> Result<MemoryExtraction, String> {
     let content = extract_json_object(content);
 
@@ -327,10 +394,20 @@ pub(crate) fn parse_memory_extraction(content: &str) -> Result<MemoryExtraction,
 }
 
 fn normalize_user_memory(mut memory: UserMemory) -> UserMemory {
+    let legacy_summary = normalize_memory_text(&memory.profile.summary, MAX_SUMMARY_CHARS);
+    memory.profile.user_summary =
+        normalize_memory_text(&memory.profile.user_summary, MAX_SUMMARY_CHARS);
+    memory.profile.auto_summary =
+        normalize_memory_text(&memory.profile.auto_summary, MAX_SUMMARY_CHARS);
+
+    if memory.profile.auto_summary.is_empty() && !legacy_summary.is_empty() {
+        memory.profile.auto_summary = legacy_summary;
+    }
+
     memory.schema_version = USER_MEMORY_SCHEMA_VERSION;
-    memory.profile.summary = normalize_memory_text(&memory.profile.summary, MAX_SUMMARY_CHARS);
+    memory.profile.summary = effective_profile_summary(&memory.profile);
     memory.profile.learned_categories = normalize_string_list(
-        memory.profile.learned_categories,
+        normalize_learned_categories(memory.profile.learned_categories),
         usize::MAX,
         MAX_NOTE_CHARS,
     );
@@ -341,6 +418,7 @@ fn normalize_user_memory(mut memory: UserMemory) -> UserMemory {
         MAX_RECENT_PROMPTS,
         MAX_QUERY_CHARS,
     );
+    memory.meta.last_learning_status = normalize_learning_status(memory.meta.last_learning_status);
     memory
 }
 
@@ -355,7 +433,9 @@ fn preference_memory_to_user_memory(memory: PreferenceMemory) -> UserMemory {
 
     normalize_user_memory(UserMemory {
         profile: ProfileMemory {
-            summary: memory.summary,
+            summary: String::new(),
+            user_summary: String::new(),
+            auto_summary: memory.summary,
             learned_categories: Vec::new(),
             notes: Vec::new(),
         },
@@ -363,6 +443,22 @@ fn preference_memory_to_user_memory(memory: PreferenceMemory) -> UserMemory {
             recent_prompts: memory.queries,
         },
         ..UserMemory::default()
+    })
+}
+
+fn normalize_learning_status(status: Option<LearningStatusMemory>) -> Option<LearningStatusMemory> {
+    status.and_then(|status| {
+        let message = normalize_memory_text(&status.message, MAX_NOTE_CHARS);
+
+        if message.is_empty() {
+            None
+        } else {
+            Some(LearningStatusMemory {
+                status: status.status,
+                message,
+                updated_at: status.updated_at.max(0),
+            })
+        }
     })
 }
 
@@ -464,6 +560,26 @@ fn normalize_string_list(values: Vec<String>, max_items: usize, max_chars: usize
     let mut normalized = Vec::new();
     extend_unique(&mut normalized, values, max_items, max_chars);
     normalized
+}
+
+fn normalize_learned_categories(values: Vec<String>) -> Vec<String> {
+    let mut categories = Vec::new();
+
+    for value in values {
+        let value = normalize_memory_text(&value, MAX_NOTE_CHARS);
+
+        if value.is_empty() {
+            continue;
+        }
+
+        for category in infer_preference_categories(&[value]) {
+            if !categories.contains(&category) {
+                categories.push(category);
+            }
+        }
+    }
+
+    categories
 }
 
 #[cfg(test)]
@@ -614,6 +730,8 @@ mod tests {
             schema_version: 9,
             profile: ProfileMemory {
                 summary: "  喜欢心理成长和商业管理  ".to_string(),
+                user_summary: "  偏好短章节  ".to_string(),
+                auto_summary: "".to_string(),
                 learned_categories: vec![
                     " 心理成长 ".to_string(),
                     "心理成长".to_string(),
@@ -651,10 +769,13 @@ mod tests {
                     "了解创业".to_string(),
                 ],
             },
+            meta: MemoryMeta::default(),
         });
 
         assert_eq!(memory.schema_version, USER_MEMORY_SCHEMA_VERSION);
-        assert_eq!(memory.profile.summary, "喜欢心理成长和商业管理");
+        assert_eq!(memory.profile.summary, "偏好短章节；喜欢心理成长和商业管理");
+        assert_eq!(memory.profile.user_summary, "偏好短章节");
+        assert_eq!(memory.profile.auto_summary, "喜欢心理成长和商业管理");
         assert_eq!(
             memory.profile.learned_categories,
             vec!["心理成长", "商业管理"]
@@ -673,6 +794,7 @@ mod tests {
     #[test]
     fn user_memory_merges_extraction_with_existing_plans() {
         let mut memory = UserMemory::default();
+        memory.profile.user_summary = "偏好短章节".to_string();
         memory.plans.push(ReadingPlanMemory {
             id: "plan-existing".to_string(),
             title: "压力管理阅读计划".to_string(),
@@ -699,7 +821,9 @@ mod tests {
             1_700_000_000_000,
         );
 
-        assert_eq!(memory.profile.summary, "偏好案例型心理成长书");
+        assert_eq!(memory.profile.user_summary, "偏好短章节");
+        assert_eq!(memory.profile.auto_summary, "偏好案例型心理成长书");
+        assert_eq!(memory.profile.summary, "偏好短章节；偏好案例型心理成长书");
         assert_eq!(memory.profile.learned_categories, vec!["心理成长"]);
         assert_eq!(memory.profile.notes, vec!["喜欢可执行建议"]);
         assert_eq!(memory.plans.len(), 1);
@@ -710,6 +834,50 @@ mod tests {
         assert_eq!(
             memory.evidence.recent_prompts,
             vec!["帮我做一个压力管理阅读计划"]
+        );
+    }
+
+    #[test]
+    fn user_memory_migrates_v1_summary_to_auto_summary() {
+        let memory = serde_json::from_str::<UserMemory>(
+            r#"{
+                "schemaVersion": 1,
+                "profile": {
+                    "summary": " 喜欢商业案例 ",
+                    "learnedCategories": ["创业方法论", "心理成长"]
+                },
+                "evidence": {
+                    "recentPrompts": ["推荐创业书"]
+                }
+            }"#,
+        )
+        .map(normalize_user_memory)
+        .unwrap();
+
+        assert_eq!(memory.schema_version, USER_MEMORY_SCHEMA_VERSION);
+        assert_eq!(memory.profile.user_summary, "");
+        assert_eq!(memory.profile.auto_summary, "喜欢商业案例");
+        assert_eq!(memory.profile.summary, "喜欢商业案例");
+        assert_eq!(
+            memory.profile.learned_categories,
+            vec!["商业管理", "心理成长"]
+        );
+    }
+
+    #[test]
+    fn learning_status_normalizes_message_and_timestamp() {
+        let mut memory = UserMemory::default();
+
+        mark_learning_status(&mut memory, LearningStatus::Failed, "  自动学习失败  ", -1);
+        let memory = normalize_user_memory(memory);
+
+        assert_eq!(
+            memory.meta.last_learning_status,
+            Some(LearningStatusMemory {
+                status: LearningStatus::Failed,
+                message: "自动学习失败".to_string(),
+                updated_at: 0,
+            })
         );
     }
 

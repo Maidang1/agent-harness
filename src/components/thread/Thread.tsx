@@ -24,7 +24,7 @@ export type ThreadProps = {
   userMemory: UserMemoryView
   onClientConfigChange: (config: BookAgentClientConfig) => void
   onUserMemoryChange: (memory: UserMemoryView) => void
-  isOpenRouterConfigured: boolean
+  isModelConfigured: boolean
   chats: ChatSummary[]
   conversationSnapshots: ChatConversationSnapshot[]
   activeChatId: string
@@ -38,7 +38,7 @@ export const Thread = ({
   userMemory,
   onClientConfigChange,
   onUserMemoryChange,
-  isOpenRouterConfigured,
+  isModelConfigured,
   chats,
   conversationSnapshots,
   activeChatId,
@@ -51,7 +51,7 @@ export const Thread = ({
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false)
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false)
   const activeChat = chats.find((chat) => chat.id === activeChatId)
-  const headerTitle = activeChat?.title ?? '读书推荐 Agent'
+  const headerTitle = activeChat?.title ?? 'JIAJIA'
   const currentStats = useMemo(
     () =>
       createRecommendationStats({
@@ -95,8 +95,13 @@ export const Thread = ({
       <main className={MAIN_WORKSPACE_CLASS_NAME}>
         <MainHeader
           title={headerTitle}
-          model={clientConfig.openrouter.model}
-          isOpenRouterConfigured={isOpenRouterConfigured}
+          provider={clientConfig.provider}
+          model={
+            clientConfig.provider === 'codex'
+              ? clientConfig.codex.model || 'Codex 默认模型'
+              : clientConfig.openrouter.model
+          }
+          isModelConfigured={isModelConfigured}
           isSidebarCollapsed={isSidebarCollapsed}
           isStatsPanelOpen={isStatsPanelOpen}
           onToggleSidebar={toggleSidebar}
@@ -105,7 +110,7 @@ export const Thread = ({
           onOpenStatsDialog={() => setIsStatsDialogOpen(true)}
         />
 
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 pb-44 md:px-8">
+        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-7 md:px-10">
           <ThreadPrimitive.Empty>
             <EmptyThread />
           </ThreadPrimitive.Empty>
@@ -113,7 +118,7 @@ export const Thread = ({
           <ThreadMessages />
         </ThreadPrimitive.Viewport>
 
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/85 to-transparent px-4 pb-3.5 pt-8 md:px-8">
+        <div className="shrink-0 bg-gradient-to-t from-background via-background/96 to-background/70 px-5 pb-5 pt-4 md:px-10">
           <Composer />
         </div>
       </main>

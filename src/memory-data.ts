@@ -1,9 +1,12 @@
-export const USER_MEMORY_SCHEMA_VERSION = 1
+export const USER_MEMORY_SCHEMA_VERSION = 2
 
 export type MemoryPlanStatus = 'active' | 'paused' | 'done'
+export type MemoryLearningStatus = 'success' | 'failed' | 'skipped'
 
 export type ProfileMemoryView = {
   summary: string
+  userSummary: string
+  autoSummary: string
   learnedCategories: string[]
   notes: string[]
 }
@@ -21,11 +24,22 @@ export type EvidenceMemoryView = {
   recentPrompts: string[]
 }
 
+export type LearningStatusMemoryView = {
+  status: MemoryLearningStatus
+  message: string
+  updatedAt: number
+}
+
+export type MemoryMetaView = {
+  lastLearningStatus: LearningStatusMemoryView | null
+}
+
 export type UserMemoryView = {
   schemaVersion: typeof USER_MEMORY_SCHEMA_VERSION
   profile: ProfileMemoryView
   plans: ReadingPlanMemoryView[]
   evidence: EvidenceMemoryView
+  meta: MemoryMetaView
 }
 
 export type EditableUserMemoryFields = {
@@ -41,6 +55,11 @@ const MEMORY_PLAN_STATUSES = new Set<MemoryPlanStatus>([
   'paused',
   'done',
 ])
+const MEMORY_LEARNING_STATUSES = new Set<MemoryLearningStatus>([
+  'success',
+  'failed',
+  'skipped',
+])
 
 const MAX_SUMMARY_CHARS = 800
 const MAX_TEXT_CHARS = 180
@@ -52,12 +71,17 @@ export const createDefaultUserMemory = (): UserMemoryView => ({
   schemaVersion: USER_MEMORY_SCHEMA_VERSION,
   profile: {
     summary: '',
+    userSummary: '',
+    autoSummary: '',
     learnedCategories: [],
     notes: [],
   },
   plans: [],
   evidence: {
     recentPrompts: [],
+  },
+  meta: {
+    lastLearningStatus: null,
   },
 })
 
@@ -73,6 +97,7 @@ export const normalizeUserMemory = (value: unknown): UserMemoryView => {
     profile: normalizeProfileMemory(memory.profile),
     plans: normalizePlans(memory.plans),
     evidence: normalizeEvidence(memory.evidence),
+    meta: normalizeMeta(memory.meta),
   }
 }
 
@@ -84,7 +109,7 @@ export const createEditedUserMemory = (
     ...memory,
     profile: {
       ...memory.profile,
-      summary: fields.summary,
+      userSummary: fields.summary,
       learnedCategories: splitLines(fields.learnedCategoriesText),
       notes: splitLines(fields.notesText),
     },
@@ -103,7 +128,25 @@ export const createSimpleEditedUserMemory = (
     ...memory,
     profile: {
       ...memory.profile,
-      summary,
+      userSummary: summary,
+    },
+  })
+
+export const createMemoryWithLearningStatus = (
+  memory: UserMemoryView,
+  status: MemoryLearningStatus,
+  message: string,
+  updatedAt = Date.now(),
+): UserMemoryView =>
+  normalizeUserMemory({
+    ...memory,
+    meta: {
+      ...memory.meta,
+      lastLearningStatus: {
+        status,
+        message,
+        updatedAt,
+      },
     },
   })
 
@@ -115,9 +158,15 @@ const normalizeProfileMemory = (value: unknown): ProfileMemoryView => {
   }
 
   const profile = value as Partial<ProfileMemoryView>
+  const legacySummary = normalizeText(profile.summary, MAX_SUMMARY_CHARS)
+  const userSummary = normalizeText(profile.userSummary, MAX_SUMMARY_CHARS)
+  const autoSummary =
+    normalizeText(profile.autoSummary, MAX_SUMMARY_CHARS) || legacySummary
 
   return {
-    summary: normalizeText(profile.summary, MAX_SUMMARY_CHARS),
+    summary: createProfileSummary(userSummary, autoSummary),
+    userSummary,
+    autoSummary,
     learnedCategories: normalizeStringList(profile.learnedCategories),
     notes: normalizeStringList(profile.notes, MAX_NOTES, MAX_TEXT_CHARS),
   }
@@ -174,6 +223,43 @@ const normalizeEvidence = (value: unknown): EvidenceMemoryView => {
   }
 }
 
+const normalizeMeta = (value: unknown): MemoryMetaView => {
+  if (typeof value !== 'object' || value === null) {
+    return createDefaultUserMemory().meta
+  }
+
+  return {
+    lastLearningStatus: normalizeLearningStatus(
+      (value as Partial<MemoryMetaView>).lastLearningStatus,
+    ),
+  }
+}
+
+const normalizeLearningStatus = (
+  value: unknown,
+): LearningStatusMemoryView | null => {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const status = value as Partial<LearningStatusMemoryView>
+  const message = normalizeText(status.message, MAX_TEXT_CHARS)
+
+  if (
+    typeof status.status !== 'string' ||
+    !MEMORY_LEARNING_STATUSES.has(status.status as MemoryLearningStatus) ||
+    !message
+  ) {
+    return null
+  }
+
+  return {
+    status: status.status as MemoryLearningStatus,
+    message,
+    updatedAt: normalizeTimestamp(status.updatedAt),
+  }
+}
+
 const normalizeStringList = (
   value: unknown,
   maxItems = Number.POSITIVE_INFINITY,
@@ -225,3 +311,11 @@ const normalizeTimestamp = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
 
 const splitLines = (value: string) => value.split('\n')
+
+const createProfileSummary = (userSummary: string, autoSummary: string) => {
+  if (userSummary && autoSummary) {
+    return `${userSummary}；${autoSummary}`
+  }
+
+  return userSummary || autoSummary
+}

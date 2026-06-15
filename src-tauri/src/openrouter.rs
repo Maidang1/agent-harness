@@ -3,7 +3,10 @@ use serde_json::Value;
 
 use crate::{
     config::OpenRouterConfig,
-    memory::{parse_memory_extraction, MemoryExtraction, ReadingPlanStatus, UserMemory},
+    memory::{
+        effective_profile_summary, parse_memory_extraction, MemoryExtraction, ReadingPlanStatus,
+        UserMemory,
+    },
 };
 
 #[cfg(test)]
@@ -48,7 +51,7 @@ fn build_memory_extraction_messages(
     vec![
         OpenRouterMessage {
             role: "system".to_string(),
-            content: r#"你是读书推荐 Agent 的长期记忆提取器。
+            content: r#"你是 JIAJIA 的长期记忆提取器。
 只从用户输入中提取稳定阅读偏好、明确读书计划和可复用证据。
 忽略一次性闲聊、敏感隐私、无关个人信息。
 只返回 JSON 对象，字段为：
@@ -89,7 +92,7 @@ async fn request_chat_completion(
         .bearer_auth(&config.api_key)
         .header("Content-Type", "application/json")
         .header("HTTP-Referer", "tauri://book-agent")
-        .header("X-Title", "Book Agent")
+        .header("X-Title", "JIAJIA")
         .json(&request_payload(&config.model, messages))
         .send()
         .await
@@ -122,7 +125,7 @@ async fn request_chat_completion(
 
 fn build_memory_context(user_memory: &UserMemory) -> Option<String> {
     let mut memory_lines = Vec::new();
-    let summary = user_memory.profile.summary.trim();
+    let summary = effective_profile_summary(&user_memory.profile);
 
     if !summary.is_empty() {
         memory_lines.push(format!("偏好摘要：{summary}"));
@@ -146,6 +149,7 @@ fn build_memory_context(user_memory: &UserMemory) -> Option<String> {
         .plans
         .iter()
         .filter(|plan| plan.status == ReadingPlanStatus::Active)
+        .take(3)
         .collect::<Vec<_>>();
 
     if !active_plans.is_empty() {
@@ -224,7 +228,9 @@ mod tests {
             "现在推荐一本适合通勤读的书",
             &UserMemory {
                 profile: ProfileMemory {
-                    summary: "偏好案例型心理成长和商业管理书".to_string(),
+                    summary: String::new(),
+                    user_summary: "偏好短章节".to_string(),
+                    auto_summary: "偏好案例型心理成长和商业管理书".to_string(),
                     learned_categories: vec!["心理成长".to_string()],
                     notes: vec!["喜欢可执行建议".to_string()],
                 },
@@ -249,7 +255,7 @@ mod tests {
         assert!(messages[1].content.contains("长期用户记忆"));
         assert!(messages[1]
             .content
-            .contains("偏好案例型心理成长和商业管理书"));
+            .contains("偏好短章节；偏好案例型心理成长和商业管理书"));
         assert!(messages[1].content.contains("模型学习分类：心理成长"));
         assert!(messages[1].content.contains("压力管理阅读计划"));
         assert!(messages[1].content.contains("之前想看压力管理"));

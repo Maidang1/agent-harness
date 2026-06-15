@@ -31,6 +31,10 @@ describe('sidebar data', () => {
     assert.equal(createThreadTitle(messages), '也想了解商业管理和创业')
   })
 
+  test('uses the app brand as the fallback thread title', () => {
+    assert.equal(createThreadTitle([]), 'JIAJIA')
+  })
+
   test('uses stored memory queries for chat rows', () => {
     const rows = createMemoryChatRows({
       summary: '最近需求偏向心理成长、商业管理。',

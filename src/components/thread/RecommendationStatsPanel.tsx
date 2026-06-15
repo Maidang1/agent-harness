@@ -57,7 +57,10 @@ export const RecommendationStatsPanel = ({
       ) : null}
 
       <Dialog open={isDialogOpen} onOpenChange={onDialogOpenChange}>
-        <DialogContent className="max-h-[90dvh] gap-0 overflow-hidden p-0 sm:max-w-md md:hidden">
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[90dvh] gap-0 overflow-hidden p-0 sm:max-w-md md:hidden"
+        >
           <DialogHeader className="sr-only">
             <DialogTitle>推荐统计</DialogTitle>
             <DialogDescription>分类和意图统计</DialogDescription>
@@ -88,10 +91,12 @@ const StatsPanelContent = ({
   onClose,
 }: StatsPanelContentProps) => (
   <div className="flex min-h-0 w-full flex-col">
-    <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-hairline px-3">
-      <div className="flex min-w-0 items-center gap-1.5">
-        <ChartNoAxesColumnIncreasing className="size-3 shrink-0 text-muted-foreground" />
-        <h2 className="truncate text-[12px] font-medium">推荐统计</h2>
+    <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-hairline px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex size-6 items-center justify-center rounded-md border border-glass-edge bg-card/55">
+          <ChartNoAxesColumnIncreasing className="size-3 shrink-0 text-system-accent" />
+        </div>
+        <h2 className="truncate text-[13px] font-semibold">推荐统计</h2>
       </div>
       <Button
         type="button"
@@ -100,13 +105,13 @@ const StatsPanelContent = ({
         aria-label="关闭统计面板"
         title="关闭统计面板"
         onClick={onClose}
-        className="size-6 text-muted-foreground hover:text-foreground"
+        className="size-7 rounded-lg text-muted-foreground hover:bg-card/65 hover:text-foreground"
       >
         <PanelRightClose className="size-3" />
       </Button>
     </div>
 
-    <div className="shrink-0 border-b border-hairline px-3 py-2">
+    <div className="shrink-0 border-b border-hairline px-4 py-3">
       <ToggleGroup
         type="single"
         value={scope}
@@ -118,19 +123,19 @@ const StatsPanelContent = ({
         variant="outline"
         size="sm"
         spacing={0}
-        className="grid w-full grid-cols-2"
+        className="grid w-full grid-cols-2 overflow-hidden rounded-xl border border-glass-edge bg-background/35 p-0.5"
       >
-        <ToggleGroupItem value="current" className="w-full text-[11px]">
+        <ToggleGroupItem value="current" className="h-8 w-full rounded-lg border-0 text-[12px] data-[state=on]:bg-card data-[state=on]:text-system-accent data-[state=on]:shadow-[0_1px_10px_-7px_var(--glass-shadow)]">
           当前对话
         </ToggleGroupItem>
-        <ToggleGroupItem value="all" className="w-full text-[11px]">
+        <ToggleGroupItem value="all" className="h-8 w-full rounded-lg border-0 text-[12px] data-[state=on]:bg-card data-[state=on]:text-system-accent data-[state=on]:shadow-[0_1px_10px_-7px_var(--glass-shadow)]">
           全部历史
         </ToggleGroupItem>
       </ToggleGroup>
     </div>
 
     <ScrollArea className="min-h-0 flex-1">
-      <div className="flex flex-col gap-4 px-3 py-3.5">
+      <div className="flex flex-col gap-5 px-4 py-4">
         <MetricGrid stats={stats} />
         <DistributionSection
           title="书籍分类"
@@ -150,20 +155,20 @@ const StatsPanelContent = ({
 
 const MetricGrid = ({ stats }: { stats: RecommendationStats }) => {
   const metrics = [
-    { label: '对话', value: stats.chatCount },
-    { label: '提示', value: stats.userPromptCount },
-    { label: '回复', value: stats.assistantReplyCount },
+    { label: '对话', value: stats.chatCount, className: 'text-system-accent' },
+    { label: '提示', value: stats.userPromptCount, className: 'text-system-blue' },
+    { label: '回复', value: stats.assistantReplyCount, className: 'text-system-green' },
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-1">
+    <div className="grid grid-cols-3 gap-2">
       {metrics.map((metric) => (
         <div
           key={metric.label}
-          className="rounded-md border border-hairline bg-muted/15 px-2 py-1.5"
+          className="rounded-xl border border-glass-edge bg-card/45 px-3 py-2.5 shadow-[0_12px_28px_-24px_var(--glass-shadow)]"
         >
-          <div className="text-sm font-medium tabular-nums">{metric.value}</div>
-          <div className="text-[10px] text-muted-foreground">{metric.label}</div>
+          <div className={`text-lg font-semibold tabular-nums ${metric.className}`}>{metric.value}</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">{metric.label}</div>
         </div>
       ))}
     </div>
@@ -181,11 +186,11 @@ const DistributionSection = ({
   items,
   emptyLabel,
 }: DistributionSectionProps) => (
-  <section className="flex flex-col gap-2">
+  <section className="flex flex-col gap-2.5">
     <div className="flex items-center justify-between gap-3">
-      <h3 className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">{title}</h3>
+      <h3 className="text-[11px] font-semibold text-muted-foreground">{title}</h3>
       {items.length > 0 ? (
-        <span className="text-[10px] tabular-nums text-muted-foreground">{sumCounts(items)} 次</span>
+        <span className="text-[11px] tabular-nums text-muted-foreground">{sumCounts(items)} 次</span>
       ) : null}
     </div>
 
@@ -196,7 +201,7 @@ const DistributionSection = ({
         ))}
       </div>
     ) : (
-      <p className="rounded-md border border-dashed border-hairline px-3 py-4 text-center text-[10px] text-muted-foreground">
+      <p className="rounded-xl border border-dashed border-hairline bg-card/22 px-3 py-5 text-center text-[11px] text-muted-foreground">
         {emptyLabel}
       </p>
     )}
@@ -204,16 +209,16 @@ const DistributionSection = ({
 )
 
 const DistributionRow = ({ item }: { item: StatsCountItem }) => (
-  <div className="flex flex-col gap-0.5">
-    <div className="flex items-center justify-between gap-3 text-[11px]">
+  <div className="flex flex-col gap-1.5">
+    <div className="flex items-center justify-between gap-3 text-[12px]">
       <span className="min-w-0 truncate">{item.label}</span>
       <span className="shrink-0 tabular-nums text-muted-foreground">
         {item.count} · {item.percentage}%
       </span>
     </div>
-    <div className="h-1 overflow-hidden rounded-full bg-muted/30">
+    <div className="h-1.5 overflow-hidden rounded-full bg-muted/45">
       <div
-        className="h-full rounded-full bg-system-accent/35"
+        className="h-full rounded-full bg-system-accent/55"
         style={{ width: `${Math.max(item.percentage, 6)}%` }}
       />
     </div>
@@ -221,21 +226,21 @@ const DistributionRow = ({ item }: { item: StatsCountItem }) => (
 )
 
 const RecentPrompts = ({ prompts }: { prompts: string[] }) => (
-  <section className="flex flex-col gap-2">
-    <h3 className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">最近提示</h3>
+  <section className="flex flex-col gap-2.5">
+    <h3 className="text-[11px] font-semibold text-muted-foreground">最近提示</h3>
     {prompts.length > 0 ? (
       <ol className="flex flex-col gap-1">
         {prompts.map((prompt, index) => (
           <li
             key={`${index}-${prompt}`}
-            className="rounded-md border border-hairline px-2 py-1.5 text-[11px] leading-5"
+            className="rounded-lg border border-glass-edge bg-card/35 px-3 py-2 text-[12px] leading-5"
           >
             {prompt}
           </li>
         ))}
       </ol>
     ) : (
-      <p className="rounded-md border border-dashed border-hairline px-3 py-4 text-center text-[10px] text-muted-foreground">
+      <p className="rounded-xl border border-dashed border-hairline bg-card/22 px-3 py-5 text-center text-[11px] text-muted-foreground">
         暂无提示
       </p>
     )}

@@ -58,6 +58,8 @@ const userMemory: UserMemoryView = {
   ...createDefaultUserMemory(),
   profile: {
     summary: '偏好案例型阅读',
+    userSummary: '',
+    autoSummary: '偏好案例型阅读',
     learnedCategories: ['科技科普'],
     notes: [],
   },

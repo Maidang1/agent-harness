@@ -5,6 +5,8 @@ import { createSettingsClientConfig } from '../src/settings-config.ts'
 import {
   BOOK_PERSONA_PRESETS,
   BOOK_PREFERENCE_CATEGORIES,
+  DEFAULT_CODEX_PATH,
+  DEFAULT_CODEX_SANDBOX,
   DEFAULT_OPENROUTER_BASE_URL,
   DEFAULT_OPENROUTER_MODEL,
   type BookAgentClientConfig,
@@ -13,10 +15,17 @@ import {
 describe('settings config', () => {
   test('creates a client config from settings form values', () => {
     const config: BookAgentClientConfig = {
+      provider: 'openrouter',
       openrouter: {
         apiKey: 'old-key',
         model: '',
         baseUrl: '',
+      },
+      codex: {
+        model: '',
+        codexPath: '',
+        cwd: '',
+        sandbox: 'read-only',
       },
       wechatApiKey: 'wx-key',
       memory: {
@@ -34,11 +43,28 @@ describe('settings config', () => {
       },
     }
 
-    assert.deepEqual(createSettingsClientConfig(config, ' sk-new ', ' weread-new '), {
+    assert.deepEqual(createSettingsClientConfig(config, {
+      provider: 'codex',
+      openrouterApiKey: ' sk-new ',
+      wechatApiKey: ' weread-new ',
+      codex: {
+        model: ' gpt-5.4 ',
+        codexPath: '',
+        cwd: ' /tmp/book-agent ',
+        sandbox: 'read-only',
+      },
+    }), {
+      provider: 'codex',
       openrouter: {
         apiKey: 'sk-new',
         model: DEFAULT_OPENROUTER_MODEL,
         baseUrl: DEFAULT_OPENROUTER_BASE_URL,
+      },
+      codex: {
+        model: 'gpt-5.4',
+        codexPath: DEFAULT_CODEX_PATH,
+        cwd: '/tmp/book-agent',
+        sandbox: DEFAULT_CODEX_SANDBOX,
       },
       wechatApiKey: 'weread-new',
       memory: {

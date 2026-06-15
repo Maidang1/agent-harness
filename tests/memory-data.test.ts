@@ -5,6 +5,7 @@ import {
   createClearedUserMemory,
   createDefaultUserMemory,
   createEditedUserMemory,
+  createMemoryWithLearningStatus,
   createSimpleEditedUserMemory,
   normalizeUserMemory,
 } from '../src/memory-data.ts'
@@ -12,15 +13,20 @@ import {
 describe('user memory data', () => {
   test('creates an empty structured memory by default', () => {
     assert.deepEqual(createDefaultUserMemory(), {
-      schemaVersion: 1,
+      schemaVersion: 2,
       profile: {
         summary: '',
+        userSummary: '',
+        autoSummary: '',
         learnedCategories: [],
         notes: [],
       },
       plans: [],
       evidence: {
         recentPrompts: [],
+      },
+      meta: {
+        lastLearningStatus: null,
       },
     })
   })
@@ -31,6 +37,7 @@ describe('user memory data', () => {
         schemaVersion: 2,
         profile: {
           summary: '  喜欢心理成长和商业管理  ',
+          userSummary: '  偏好短章节  ',
           learnedCategories: [' 心理成长 ', '心理成长', 42, '商业管理'],
           notes: ['  喜欢案例型推荐  ', '', '喜欢案例型推荐', '避免太学术'],
         },
@@ -52,11 +59,20 @@ describe('user memory data', () => {
         evidence: {
           recentPrompts: [' 想读压力管理 ', 123, '', '想读压力管理', '了解创业'],
         },
+        meta: {
+          lastLearningStatus: {
+            status: 'failed',
+            message: ' 自动学习失败 ',
+            updatedAt: -1,
+          },
+        },
       }),
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         profile: {
-          summary: '喜欢心理成长和商业管理',
+          summary: '偏好短章节；喜欢心理成长和商业管理',
+          userSummary: '偏好短章节',
+          autoSummary: '喜欢心理成长和商业管理',
           learnedCategories: ['心理成长', '商业管理'],
           notes: ['喜欢案例型推荐', '避免太学术'],
         },
@@ -72,6 +88,13 @@ describe('user memory data', () => {
         ],
         evidence: {
           recentPrompts: ['想读压力管理', '了解创业'],
+        },
+        meta: {
+          lastLearningStatus: {
+            status: 'failed',
+            message: '自动学习失败',
+            updatedAt: 0,
+          },
         },
       },
     )
@@ -96,9 +119,11 @@ describe('user memory data', () => {
         ],
       }),
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         profile: {
           summary: '喜欢商业案例',
+          userSummary: '喜欢商业案例',
+          autoSummary: '',
           learnedCategories: ['商业管理', '心理成长'],
           notes: ['偏好短章节', '避免纯理论'],
         },
@@ -115,6 +140,9 @@ describe('user memory data', () => {
         evidence: {
           recentPrompts: ['推荐创业书', '制定压力管理计划'],
         },
+        meta: {
+          lastLearningStatus: null,
+        },
       },
     )
   })
@@ -123,6 +151,8 @@ describe('user memory data', () => {
     const memory = normalizeUserMemory({
       profile: {
         summary: '旧摘要',
+        userSummary: '',
+        autoSummary: '自动摘要',
         learnedCategories: ['商业管理'],
         notes: ['喜欢案例'],
       },
@@ -145,12 +175,28 @@ describe('user memory data', () => {
       ...memory,
       profile: {
         ...memory.profile,
-        summary: '新摘要',
+        summary: '新摘要；自动摘要',
+        userSummary: '新摘要',
       },
     })
   })
 
   test('clears editable memory fields', () => {
     assert.deepEqual(createClearedUserMemory(), createDefaultUserMemory())
+  })
+
+  test('adds a local learning status fallback', () => {
+    const memory = createMemoryWithLearningStatus(
+      createDefaultUserMemory(),
+      'failed',
+      ' 自动学习失败 ',
+      -1,
+    )
+
+    assert.deepEqual(memory.meta.lastLearningStatus, {
+      status: 'failed',
+      message: '自动学习失败',
+      updatedAt: 0,
+    })
   })
 })

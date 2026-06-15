@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { useAgUiRuntime } from '@assistant-ui/react-ag-ui'
-import { OpenRouterBookAgent } from '../agents/openrouter-book-agent'
-import { hasOpenRouterApiKey, type BookAgentClientConfig } from '../client-config'
+import { BookRecommendationAgent } from '../agents/openrouter-book-agent'
+import { isBookAgentConfigured, type BookAgentClientConfig } from '../client-config'
 import {
   createChatHistoryAdapter,
   type ChatConversationSnapshot,
@@ -13,7 +13,7 @@ import { Thread } from './Thread'
 
 type ChatWorkspaceProps = {
   conversationId: string
-  agent: OpenRouterBookAgent
+  agent: BookRecommendationAgent
   clientConfig: BookAgentClientConfig
   userMemory: UserMemoryView
   onClientConfigChange: (config: BookAgentClientConfig) => void
@@ -48,7 +48,7 @@ export const ChatWorkspace = ({
         userMemory={userMemory}
         onClientConfigChange={onClientConfigChange}
         onUserMemoryChange={onUserMemoryChange}
-        isOpenRouterConfigured={hasOpenRouterApiKey(clientConfig)}
+        isModelConfigured={isBookAgentConfigured(clientConfig)}
         chats={chats}
         conversationSnapshots={conversationSnapshots}
         activeChatId={conversationId}

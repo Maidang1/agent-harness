@@ -55,11 +55,22 @@ describe('sidebar layout', () => {
       /color-mix\(in_oklch,var\(--background\)_82%,transparent\)/,
     )
     assert.match(MAIN_HEADER_TITLE_CLASS_NAME, /\bleading-none\b/)
-    assert.doesNotMatch(source, /<p[^>]*>读书推荐 Agent<\/p>/)
+    assert.doesNotMatch(source, /<p[^>]*>JIAJIA<\/p>/)
   })
 
   test('keeps the collapsed sidebar toggle in the header flow', () => {
     assert.doesNotMatch(COLLAPSED_SIDEBAR_TOGGLE_CLASS_NAME, /\babsolute\b/)
     assert.match(SIDEBAR_TOGGLE_ICON_CLASS_NAME, /-translate-y-px/)
+  })
+
+  test('keeps the composer in normal flow below the scroll viewport', () => {
+    const source = readFileSync(
+      new URL('../src/components/thread/Thread.tsx', import.meta.url),
+      { encoding: 'utf8' },
+    )
+
+    assert.doesNotMatch(source, /\babsolute\s+inset-x-0\s+bottom-0\b/)
+    assert.doesNotMatch(source, /\bpb-50\b/)
+    assert.match(source, /\bshrink-0\b/)
   })
 })

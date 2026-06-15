@@ -42,7 +42,7 @@ export const createThreadTitle = (
     return truncateTextTitle(latestStoredQuery)
   }
 
-  return '读书推荐 Agent'
+  return 'JIAJIA'
 }
 
 export const createMemoryChatRows = (

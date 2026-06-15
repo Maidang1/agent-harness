@@ -7,31 +7,48 @@ import {
   type RunAgentInput,
 } from '@ag-ui/client'
 import { Observable, type Subscriber } from 'rxjs'
-import { type BookAgentClientConfig } from '../client-config'
-import { generateUserMemoryFromPrompt } from '../memory-store'
+import { type BookAgentClientConfig } from '../client-config.ts'
+import { streamCodexChat } from '../codex-client.ts'
+import { generateUserMemoryFromPrompt } from '../memory-store.ts'
 import {
+  createMemoryWithLearningStatus,
   createDefaultUserMemory,
   type UserMemoryView,
-} from '../memory-data'
+} from '../memory-data.ts'
 import {
+  buildBookRecommendationPrompt,
   buildBookRecommendationMessages,
   createOpenRouterChatClient,
   streamOpenRouterChat,
   type BookRecommendationInputMessage,
-} from '../openrouter-client'
+} from '../openrouter-client.ts'
 import { contentToText } from '../text-content.ts'
 
-export class OpenRouterBookAgent extends HttpAgent {
+type BookRecommendationAgentDependencies = {
+  streamCodexChat: typeof streamCodexChat
+  generateUserMemoryFromPrompt: typeof generateUserMemoryFromPrompt
+}
+
+export class BookRecommendationAgent extends HttpAgent {
   private clientConfig: BookAgentClientConfig
   private userMemory: UserMemoryView = createDefaultUserMemory()
   private onMemoryChange?: (memory: UserMemoryView) => void
+  private dependencies: BookRecommendationAgentDependencies
 
-  constructor(clientConfig: BookAgentClientConfig) {
+  constructor(
+    clientConfig: BookAgentClientConfig,
+    dependencies: Partial<BookRecommendationAgentDependencies> = {},
+  ) {
     super({
-      url: 'local://openrouter',
-      description: 'Local Tauri OpenRouter book recommendation agent',
+      url: 'local://book-recommendation',
+      description: 'Local Tauri book recommendation agent',
     })
     this.clientConfig = clientConfig
+    this.dependencies = {
+      streamCodexChat,
+      generateUserMemoryFromPrompt,
+      ...dependencies,
+    }
   }
 
   setClientConfig(config: BookAgentClientConfig) {
@@ -71,50 +88,34 @@ export class OpenRouterBookAgent extends HttpAgent {
     const threadId = input.threadId || this.threadId
     const runId = input.runId || randomUUID()
     const messageId = randomUUID()
+    let hasStartedMessage = false
+
+    const emitAssistantDelta = (delta: string) => {
+      if (!hasStartedMessage) {
+        subscriber.next({
+          type: EventType.TEXT_MESSAGE_START,
+          messageId,
+          role: 'assistant',
+        })
+        hasStartedMessage = true
+      }
+
+      emitTextDelta(delta, messageId, subscriber)
+    }
 
     subscriber.next({ type: EventType.RUN_STARTED, threadId, runId })
-    subscriber.next({
-      type: EventType.TEXT_MESSAGE_START,
-      messageId,
-      role: 'assistant',
-    })
 
     try {
-      const { openrouter } = this.clientConfig
-
-      if (openrouter.apiKey.trim().length === 0) {
-        throw new Error('请先在右上角配置 OpenRouter API Key。')
-      }
-
       const inputMessages = toBookMessages(input.messages)
       const latestUserPrompt = getLatestUserPrompt(inputMessages)
-      const recommendationMessages = buildBookRecommendationMessages(
+      const hasContent = await this.streamRecommendation(
         inputMessages,
-        this.clientConfig,
-        this.userMemory,
-      )
-      const openrouterClient = createOpenRouterChatClient(openrouter)
-      let hasContent = false
-
-      for await (const event of streamOpenRouterChat(
-        openrouterClient,
-        openrouter,
-        recommendationMessages,
+        emitAssistantDelta,
         signal,
-      )) {
-        if (signal.aborted) {
-          subscriber.complete()
-          return
-        }
-
-        if (event.type === 'content') {
-          hasContent = true
-          emitTextDelta(event.delta, messageId, subscriber)
-        }
-      }
+      )
 
       if (!hasContent) {
-        throw new Error('OpenRouter 响应中没有可展示内容。')
+        throw new Error('模型响应中没有可展示内容。')
       }
 
       this.queueMemoryGeneration(latestUserPrompt)
@@ -124,10 +125,12 @@ export class OpenRouterBookAgent extends HttpAgent {
         return
       }
 
-      emitTextDelta(formatError(error), messageId, subscriber)
+      emitAssistantDelta(formatError(error))
     }
 
-    subscriber.next({ type: EventType.TEXT_MESSAGE_END, messageId })
+    if (hasStartedMessage) {
+      subscriber.next({ type: EventType.TEXT_MESSAGE_END, messageId })
+    }
     subscriber.next({
       type: EventType.RUN_FINISHED,
       threadId,
@@ -138,24 +141,107 @@ export class OpenRouterBookAgent extends HttpAgent {
   }
 
   private queueMemoryGeneration(prompt: string) {
-    const { memory, openrouter } = this.clientConfig
-
-    if (
-      !prompt ||
-      !memory.enabled ||
-      !memory.autoGenerateFromPrompt ||
-      openrouter.apiKey.trim().length === 0
-    ) {
+    if (!prompt) {
       return
     }
 
-    void generateUserMemoryFromPrompt(prompt, this.clientConfig)
+    void this.dependencies.generateUserMemoryFromPrompt(prompt, this.clientConfig)
       .then((userMemory) => this.onMemoryChange?.(userMemory))
-      .catch(() => {
-        // Memory extraction is best-effort and must not interrupt the chat run.
+      .catch((error) => {
+        this.onMemoryChange?.(
+          createMemoryWithLearningStatus(
+            this.userMemory,
+            'failed',
+            formatMemoryError(error),
+          ),
+        )
       })
   }
+
+  private async streamRecommendation(
+    inputMessages: BookRecommendationInputMessage[],
+    onDelta: (delta: string) => void,
+    signal: AbortSignal,
+  ) {
+    return this.clientConfig.provider === 'codex'
+      ? this.streamCodexRecommendation(inputMessages, onDelta, signal)
+      : this.streamOpenRouterRecommendation(
+          inputMessages,
+          onDelta,
+          signal,
+        )
+  }
+
+  private async streamOpenRouterRecommendation(
+    inputMessages: BookRecommendationInputMessage[],
+    onDelta: (delta: string) => void,
+    signal: AbortSignal,
+  ) {
+    const { openrouter } = this.clientConfig
+
+    if (openrouter.apiKey.trim().length === 0) {
+      throw new Error('请先在左下角设置中配置 OpenRouter API Key。')
+    }
+
+    const recommendationMessages = buildBookRecommendationMessages(
+      inputMessages,
+      this.clientConfig,
+      this.userMemory,
+    )
+    const openrouterClient = createOpenRouterChatClient(openrouter)
+    let hasContent = false
+
+    for await (const event of streamOpenRouterChat(
+      openrouterClient,
+      openrouter,
+      recommendationMessages,
+      signal,
+    )) {
+      if (signal.aborted) {
+        return hasContent
+      }
+
+      if (event.type === 'content') {
+        hasContent = true
+        onDelta(event.delta)
+      }
+    }
+
+    return hasContent
+  }
+
+  private async streamCodexRecommendation(
+    inputMessages: BookRecommendationInputMessage[],
+    onDelta: (delta: string) => void,
+    signal: AbortSignal,
+  ) {
+    const prompt = buildBookRecommendationPrompt(
+      inputMessages,
+      this.clientConfig,
+      this.userMemory,
+    )
+    let hasContent = false
+
+    for await (const event of this.dependencies.streamCodexChat(
+      prompt,
+      this.clientConfig,
+      signal,
+    )) {
+      if (signal.aborted) {
+        return hasContent
+      }
+
+      if (event.type === 'content') {
+        hasContent = true
+        onDelta(event.delta)
+      }
+    }
+
+    return hasContent
+  }
 }
+
+export { BookRecommendationAgent as OpenRouterBookAgent }
 
 const toBookMessages = (messages: Message[]): BookRecommendationInputMessage[] =>
   messages
@@ -192,5 +278,12 @@ const formatError = (error: unknown) => {
         ? error
         : '未知错误'
 
-  return `OpenRouter 调用失败：${message}`
+  return `模型调用失败：${message}`
 }
+
+const formatMemoryError = (error: unknown) =>
+  error instanceof Error
+    ? `自动学习失败：${error.message}`
+    : typeof error === 'string'
+      ? `自动学习失败：${error}`
+      : '自动学习失败。'

@@ -1,7 +1,9 @@
 import { OpenRouter } from '@openrouter/sdk'
 import {
+  BOOK_PREFERENCE_CATEGORIES,
   DEFAULT_OPENROUTER_MODEL,
   getBookPersonaPrompt,
+  type BookPreferenceCategory,
   type BookAgentClientConfig,
   type OpenRouterClientConfig,
 } from './client-config.ts'
@@ -10,7 +12,7 @@ import {
   type UserMemoryView,
 } from './memory-data.ts'
 
-const SYSTEM_PROMPT = `你是一个专业的读书推荐助手，名为「读书推荐 Agent」。
+export const SYSTEM_PROMPT = `你是一个专业的读书推荐助手，名为「JIAJIA」。
 
 你的能力：
 - 基于用户的阅读需求、兴趣、目标推荐合适的书籍
@@ -94,7 +96,7 @@ export const createOpenRouterChatClient = (
   return new OpenRouter({
     apiKey: config.apiKey.trim(),
     httpReferer: 'tauri://book-agent',
-    appTitle: 'Book Agent',
+    appTitle: 'JIAJIA',
     ...(serverURL ? { serverURL } : {}),
   })
 }
@@ -211,8 +213,28 @@ export const buildBookRecommendationMessages = (
   return openrouterMessages
 }
 
+export const buildBookRecommendationPrompt = (
+  messages: BookRecommendationInputMessage[],
+  config: BookAgentClientConfig,
+  userMemory: UserMemoryView,
+) =>
+  buildBookRecommendationMessages(messages, config, userMemory)
+    .map(formatPromptMessage)
+    .join('\n\n')
+
 const trimChatCompletionPath = (value: string) =>
   value.replace(/\/chat\/completions\/?$/, '') || '/'
+
+const formatPromptMessage = (message: OpenRouterMessage) => {
+  const label =
+    message.role === 'system'
+      ? '系统'
+      : message.role === 'assistant'
+        ? '助手'
+        : '用户'
+
+  return `${label}：\n${message.content}`
+}
 
 const buildPersonaContext = (config: BookAgentClientConfig) => {
   const personaPrompt = getBookPersonaPrompt(config.persona).trim()
@@ -231,31 +253,25 @@ const buildMemoryContext = (
   }
 
   const memoryLines: string[] = []
-  const summary = userMemory.profile.summary.trim()
+  const summary = createMemorySummary(userMemory)
 
   if (summary) {
     memoryLines.push(`偏好摘要：${summary}`)
   }
 
-  if (preferences.favoriteCategories.length > 0) {
-    memoryLines.push(
-      `显式偏好分类：${preferences.favoriteCategories.join('、')}。`,
-    )
+  const categories = normalizeMemoryCategories([
+    ...preferences.favoriteCategories,
+    ...userMemory.profile.learnedCategories,
+  ])
+
+  if (categories.length > 0) {
+    memoryLines.push(`偏好分类：${categories.join('、')}。`)
   }
 
-  if (userMemory.profile.learnedCategories.length > 0) {
-    memoryLines.push(
-      `模型学习分类：${userMemory.profile.learnedCategories.join('、')}。`,
-    )
-  }
-
-  if (userMemory.profile.notes.length > 0) {
-    memoryLines.push(`偏好备注：${userMemory.profile.notes.join('；')}。`)
-  }
-
-  const activePlans = userMemory.plans.filter(
-    (plan) => plan.status === 'active',
-  )
+  const activePlans = [...userMemory.plans]
+    .filter((plan) => plan.status === 'active')
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 3)
 
   if (activePlans.length > 0) {
     memoryLines.push('活跃读书计划：')
@@ -279,4 +295,33 @@ const formatReadingPlan = (plan: ReadingPlanMemoryView) => {
   return evidence
     ? `- ${plan.title}：${plan.goal}；依据：${evidence}`
     : `- ${plan.title}：${plan.goal}`
+}
+
+const createMemorySummary = (userMemory: UserMemoryView) => {
+  const userSummary = userMemory.profile.userSummary.trim()
+  const autoSummary = userMemory.profile.autoSummary.trim()
+
+  if (userSummary && autoSummary) {
+    return `${userSummary}；${autoSummary}`
+  }
+
+  return userSummary || autoSummary || userMemory.profile.summary.trim()
+}
+
+const normalizeMemoryCategories = (
+  values: readonly string[],
+): BookPreferenceCategory[] => {
+  const categories = new Set<BookPreferenceCategory>()
+
+  for (const value of values) {
+    const category = BOOK_PREFERENCE_CATEGORIES.find(
+      (item) => item.value === value || item.label === value,
+    )
+
+    if (category) {
+      categories.add(category.value)
+    }
+  }
+
+  return [...categories]
 }

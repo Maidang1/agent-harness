@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { OpenRouterBookAgent } from './agents/openrouter-book-agent'
+import { BookRecommendationAgent } from './agents/openrouter-book-agent'
 import { ChatWorkspace } from './components/ChatWorkspace'
 import {
   loadClientConfig,
@@ -24,7 +24,7 @@ import {
 export const App = () => {
   const [clientConfig, setClientConfig] = useState(loadClientConfig)
   const [userMemory, setUserMemory] = useState(createDefaultUserMemory)
-  const [agent] = useState(() => new OpenRouterBookAgent(clientConfig))
+  const [agent] = useState(() => new BookRecommendationAgent(clientConfig))
   const [conversationId, setConversationId] = useState(createConversationId)
   const [chats, setChats] = useState<ChatSummary[]>(() => listConversations())
   const [conversationSnapshots, setConversationSnapshots] = useState<

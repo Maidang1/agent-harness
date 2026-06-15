@@ -1,5 +1,7 @@
 import {
   ChartNoAxesColumnIncreasing,
+  ChevronDown,
+  Circle,
   PanelLeftOpen,
   Settings,
   Sparkles,
@@ -13,11 +15,13 @@ import {
 } from '../../sidebar-layout'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { type BookAgentProvider } from '../../client-config'
 
 type MainHeaderProps = {
   title: string
+  provider: BookAgentProvider
   model: string
-  isOpenRouterConfigured: boolean
+  isModelConfigured: boolean
   isSidebarCollapsed: boolean
   isStatsPanelOpen: boolean
   onToggleSidebar: () => void
@@ -32,10 +36,14 @@ const formatModelName = (model: string) => {
   return name.replace(/:.*$/, '').replace(/-/g, ' ')
 }
 
+const formatProviderName = (provider: BookAgentProvider) =>
+  provider === 'codex' ? 'Codex' : 'OpenRouter'
+
 export const MainHeader = ({
   title,
+  provider,
   model,
-  isOpenRouterConfigured,
+  isModelConfigured,
   isSidebarCollapsed,
   isStatsPanelOpen,
   onToggleSidebar,
@@ -50,7 +58,7 @@ export const MainHeader = ({
       isSidebarCollapsed && COLLAPSED_MAIN_HEADER_CLASS_NAME,
     )}
   >
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2.5">
       {isSidebarCollapsed ? (
         <Button
           type="button"
@@ -69,17 +77,40 @@ export const MainHeader = ({
       </div>
     </div>
 
-    <div className="flex items-center gap-1">
-      {isOpenRouterConfigured ? (
+    <div className="flex items-center gap-1.5">
+      {isModelConfigured ? (
         <button
           type="button"
           onClick={onOpenConfig}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          className="hidden h-7 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/50 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground sm:flex"
         >
-          <Sparkles className="size-2.5 text-system-accent" />
-          <span className="max-w-24 truncate">{formatModelName(model)}</span>
+          <Circle className="size-2 fill-system-green text-system-green" />
+          <span className="max-w-32 truncate">
+            {formatProviderName(provider)} 已配置
+          </span>
         </button>
       ) : (
+        <button
+          type="button"
+          onClick={onOpenConfig}
+          className="hidden h-7 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/50 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground sm:flex"
+        >
+          <Circle className="size-2 fill-system-amber text-system-amber" />
+          <span>模型待配置</span>
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={onOpenConfig}
+        className="hidden h-7 max-w-48 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/45 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground md:flex"
+      >
+        <Sparkles className="size-3 text-system-accent" />
+        <span className="truncate">{formatModelName(model)}</span>
+        <ChevronDown className="size-3" />
+      </button>
+
+      {isModelConfigured ? null : (
         <Button
           type="button"
           variant="ghost"

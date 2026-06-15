@@ -5,6 +5,8 @@ import {
   BOOK_PERSONA_PRESETS,
   BOOK_PREFERENCE_CATEGORIES,
   createDefaultClientConfig,
+  DEFAULT_CODEX_PATH,
+  DEFAULT_CODEX_SANDBOX,
   DEFAULT_BOOK_PERSONA_PRESET_ID,
   loadClientConfig,
   saveClientConfig,
@@ -56,14 +58,28 @@ describe('client config preferences', () => {
       customPrompt: '',
       useCustomPrompt: false,
     })
+    assert.equal(config.provider, 'openrouter')
+    assert.deepEqual(config.codex, {
+      model: '',
+      codexPath: DEFAULT_CODEX_PATH,
+      cwd: '',
+      sandbox: DEFAULT_CODEX_SANDBOX,
+    })
   })
 
   test('keeps selected favorite categories when config is saved and loaded', () => {
     const config: BookAgentClientConfig = {
+      provider: 'codex',
       openrouter: {
         apiKey: 'sk-test',
         model: 'deepseek/test',
         baseUrl: 'https://example.com/chat',
+      },
+      codex: {
+        model: 'gpt-5.4',
+        codexPath: '/opt/homebrew/bin/codex',
+        cwd: '/tmp/book-agent',
+        sandbox: 'read-only',
       },
       wechatApiKey: 'wx-test',
       memory: {
@@ -89,6 +105,8 @@ describe('client config preferences', () => {
     assert.deepEqual(loadClientConfig().preferences, config.preferences)
     assert.deepEqual(loadClientConfig().memory, config.memory)
     assert.deepEqual(loadClientConfig().persona, config.persona)
+    assert.equal(loadClientConfig().provider, 'codex')
+    assert.deepEqual(loadClientConfig().codex, config.codex)
   })
 
   test('loads old config without preferences as empty preference memory', () => {
@@ -116,6 +134,33 @@ describe('client config preferences', () => {
       presetId: DEFAULT_BOOK_PERSONA_PRESET_ID,
       customPrompt: '',
       useCustomPrompt: false,
+    })
+    assert.equal(loadClientConfig().provider, 'openrouter')
+    assert.deepEqual(loadClientConfig().codex, createDefaultClientConfig().codex)
+  })
+
+  test('normalizes stored Codex provider settings', () => {
+    window.localStorage.setItem(
+      'book-agent.client-config',
+      JSON.stringify({
+        provider: 'codex',
+        codex: {
+          model: '  gpt-5.4  ',
+          codexPath: '  /usr/local/bin/codex  ',
+          cwd: '  /tmp/books  ',
+          sandbox: 'danger-full-access',
+        },
+      }),
+    )
+
+    const config = loadClientConfig()
+
+    assert.equal(config.provider, 'codex')
+    assert.deepEqual(config.codex, {
+      model: 'gpt-5.4',
+      codexPath: '/usr/local/bin/codex',
+      cwd: '/tmp/books',
+      sandbox: 'read-only',
     })
   })
 

@@ -1,4 +1,4 @@
-# Book Agent
+# JIAJIA
 
 React + Vite frontend with a local Tauri AG-UI adapter, OpenRouter calls, and a Tauri desktop shell.
 
@@ -26,7 +26,7 @@ Run the Tauri desktop app with the local Vite dev server:
 corepack pnpm tauri:dev
 ```
 
-The desktop dev command starts Vite on `http://127.0.0.1:1420` and opens the `Book Agent` window.
+The desktop dev command starts Vite on `http://127.0.0.1:1420` and opens the `JIAJIA` window.
 
 ## Desktop Build
 
