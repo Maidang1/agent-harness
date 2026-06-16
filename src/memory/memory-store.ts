@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { type BookAgentClientConfig } from './client-config.ts'
+import { type BookAgentClientConfig } from '../config/client-config.ts'
 import {
   createDefaultUserMemory,
   normalizeUserMemory,

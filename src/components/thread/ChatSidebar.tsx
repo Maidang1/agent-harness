@@ -4,12 +4,12 @@ import {
   SquarePen,
   Trash2,
 } from 'lucide-react'
-import { type ChatSummary } from '../../chat-store'
+import { type ChatSummary } from '../../chat/chat-store'
 import {
   SIDEBAR_PANEL_CLASS_NAME,
   SIDEBAR_TOGGLE_ICON_CLASS_NAME,
   SIDEBAR_TITLEBAR_CLASS_NAME,
-} from '../../sidebar-layout'
+} from '../../layout/sidebar-layout'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -44,13 +44,15 @@ export const ChatSidebar = ({
   onToggle,
 }: ChatSidebarProps) => (
   <aside
+    data-thread-sidebar
+    data-thread-motion="intro"
     className={cn(
       SIDEBAR_PANEL_CLASS_NAME,
       isCollapsed && 'w-0 border-r-0',
     )}
     aria-hidden={isCollapsed}
   >
-    <div className="flex h-full w-72 shrink-0 flex-col">
+    <div className="flex h-full w-72 shrink-0 flex-col" data-sidebar-inner>
       <div
         data-tauri-drag-region
         className={cn(SIDEBAR_TITLEBAR_CLASS_NAME, 'justify-end')}
@@ -154,14 +156,14 @@ const ChatRow = ({
 }: ChatRowProps) => (
   <div
     className={cn(
-      'group flex items-center gap-0.5 rounded-lg transition-colors',
+      'group relative rounded-lg transition-colors',
       isActive && 'bg-sidebar-accent/75 shadow-[inset_0_0_0_1px_var(--glass-edge)]',
     )}
   >
     <Button
       type="button"
       variant="ghost"
-      className="h-8 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-[12px] hover:bg-card/45"
+      className="h-8 w-full min-w-0 justify-start gap-2 rounded-lg px-2 pr-9 text-[12px] hover:bg-card/45"
       onClick={() => onSelectChat(chat.id)}
     >
       <span className={cn(
@@ -178,7 +180,7 @@ const ChatRow = ({
       title="删除对话"
       variant="ghost"
       size="icon-xs"
-      className="mr-0.5 opacity-0 group-hover:opacity-60 hover:opacity-100!"
+      className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 hover:opacity-100! focus-visible:opacity-100"
       onClick={() => onDeleteChat(chat.id)}
     >
       <Trash2 className="size-3" />

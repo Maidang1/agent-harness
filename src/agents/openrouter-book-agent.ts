@@ -7,22 +7,23 @@ import {
   type RunAgentInput,
 } from '@ag-ui/client'
 import { Observable, type Subscriber } from 'rxjs'
-import { type BookAgentClientConfig } from '../client-config.ts'
-import { streamCodexChat } from '../codex-client.ts'
-import { generateUserMemoryFromPrompt } from '../memory-store.ts'
+import { type BookAgentClientConfig } from '../config/client-config.ts'
+import { streamCodexChat } from '../model-clients/codex-client.ts'
+import { generateUserMemoryFromPrompt } from '../memory/memory-store.ts'
 import {
   createMemoryWithLearningStatus,
   createDefaultUserMemory,
   type UserMemoryView,
-} from '../memory-data.ts'
+} from '../memory/memory-data.ts'
 import {
   buildBookRecommendationPrompt,
   buildBookRecommendationMessages,
   createOpenRouterChatClient,
   streamOpenRouterChat,
   type BookRecommendationInputMessage,
-} from '../openrouter-client.ts'
-import { contentToText } from '../text-content.ts'
+  type ReadingContext,
+} from '../model-clients/openrouter-client.ts'
+import { contentToText } from '../chat/text-content.ts'
 
 type BookRecommendationAgentDependencies = {
   streamCodexChat: typeof streamCodexChat
@@ -32,6 +33,7 @@ type BookRecommendationAgentDependencies = {
 export class BookRecommendationAgent extends HttpAgent {
   private clientConfig: BookAgentClientConfig
   private userMemory: UserMemoryView = createDefaultUserMemory()
+  private readingContext: ReadingContext = {}
   private onMemoryChange?: (memory: UserMemoryView) => void
   private dependencies: BookRecommendationAgentDependencies
 
@@ -57,6 +59,10 @@ export class BookRecommendationAgent extends HttpAgent {
 
   setUserMemory(memory: UserMemoryView) {
     this.userMemory = memory
+  }
+
+  setReadingContext(context: ReadingContext) {
+    this.readingContext = context
   }
 
   setMemoryChangeHandler(handler: (memory: UserMemoryView) => void) {
@@ -187,6 +193,7 @@ export class BookRecommendationAgent extends HttpAgent {
       inputMessages,
       this.clientConfig,
       this.userMemory,
+      this.readingContext,
     )
     const openrouterClient = createOpenRouterChatClient(openrouter)
     let hasContent = false
@@ -219,6 +226,7 @@ export class BookRecommendationAgent extends HttpAgent {
       inputMessages,
       this.clientConfig,
       this.userMemory,
+      this.readingContext,
     )
     let hasContent = false
 

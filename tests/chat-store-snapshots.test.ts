@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, test } from 'node:test'
 
-import { listConversationSnapshots } from '../src/chat-store.ts'
+import { listConversationSnapshots } from '../src/chat/chat-store.ts'
 
 class MemoryStorage {
   private readonly values = new Map<string, string>()

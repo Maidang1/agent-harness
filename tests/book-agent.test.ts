@@ -3,9 +3,9 @@ import { describe, test } from 'node:test'
 
 import { EventType, type BaseEvent } from '@ag-ui/client'
 import { BookRecommendationAgent } from '../src/agents/openrouter-book-agent.ts'
-import { createDefaultClientConfig } from '../src/client-config.ts'
-import { createDefaultUserMemory } from '../src/memory-data.ts'
-import { type CodexStreamEvent } from '../src/codex-client.ts'
+import { createDefaultClientConfig } from '../src/config/client-config.ts'
+import { createDefaultUserMemory } from '../src/memory/memory-data.ts'
+import { type CodexStreamEvent } from '../src/model-clients/codex-client.ts'
 
 const collectRunEvents = (agent: BookRecommendationAgent) =>
   new Promise<BaseEvent[]>((resolve, reject) => {

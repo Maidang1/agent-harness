@@ -15,7 +15,15 @@ use crate::{
     },
     metadata::{app_metadata, AppMetadata},
     openrouter::request_memory_extraction as request_openrouter_memory_extraction,
+    weread::{
+        get_book_notes as get_weread_book_notes_command, load_reading_workspace,
+        load_weread_snapshot, reading_workspace_path,
+        save_reading_workspace as persist_reading_workspace,
+        sync_snapshot as sync_weread_snapshot_command, weread_snapshot_path, WereadBookNotes,
+        WereadCommandConfig, WereadSnapshot,
+    },
 };
+use serde_json::Value;
 
 #[tauri::command]
 pub(crate) async fn get_preference_memory(
@@ -179,6 +187,48 @@ pub(crate) async fn cancel_codex_run(
 #[tauri::command]
 pub(crate) async fn get_app_metadata(app_handle: tauri::AppHandle) -> Result<AppMetadata, String> {
     Ok(app_metadata(&app_handle))
+}
+
+#[tauri::command]
+pub(crate) async fn sync_weread_snapshot(
+    app_handle: tauri::AppHandle,
+    config: WereadCommandConfig,
+) -> Result<WereadSnapshot, String> {
+    sync_weread_snapshot_command(&app_handle, config).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_weread_snapshot(
+    app_handle: tauri::AppHandle,
+) -> Result<WereadSnapshot, String> {
+    let path = weread_snapshot_path(&app_handle)?;
+
+    load_weread_snapshot(&path)
+}
+
+#[tauri::command]
+pub(crate) async fn get_weread_book_notes(
+    book_id: String,
+    config: WereadCommandConfig,
+) -> Result<WereadBookNotes, String> {
+    get_weread_book_notes_command(book_id, config).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_reading_workspace(app_handle: tauri::AppHandle) -> Result<Value, String> {
+    let path = reading_workspace_path(&app_handle)?;
+
+    load_reading_workspace(&path)
+}
+
+#[tauri::command]
+pub(crate) async fn save_reading_workspace(
+    app_handle: tauri::AppHandle,
+    workspace: Value,
+) -> Result<Value, String> {
+    let path = reading_workspace_path(&app_handle)?;
+
+    persist_reading_workspace(&path, &workspace)
 }
 
 fn current_timestamp_ms() -> i64 {

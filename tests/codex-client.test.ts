@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { createDefaultClientConfig } from '../src/client-config.ts'
-import { buildStartCodexChatRunArgs } from '../src/codex-client.ts'
+import { createDefaultClientConfig } from '../src/config/client-config.ts'
+import { buildStartCodexChatRunArgs } from '../src/model-clients/codex-client.ts'
 
 describe('codex client', () => {
   test('builds start run args with the complete Tauri client config shape', () => {

@@ -11,7 +11,7 @@ import {
   loadClientConfig,
   saveClientConfig,
   type BookAgentClientConfig,
-} from '../src/client-config.ts'
+} from '../src/config/client-config.ts'
 
 class MemoryStorage {
   private readonly values = new Map<string, string>()

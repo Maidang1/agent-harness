@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ThreadPrimitive } from '@assistant-ui/react'
-import { type BookAgentClientConfig } from '../../client-config'
+import { type BookAgentClientConfig } from '../../config/client-config'
 import {
   type ChatConversationSnapshot,
   type ChatSummary,
-} from '../../chat-store'
-import { type UserMemoryView } from '../../memory-data'
-import { createRecommendationStats } from '../../recommendation-stats'
+} from '../../chat/chat-store'
+import { type UserMemoryView } from '../../memory/memory-data'
+import { type ReadingWorkspace } from '../../reading/reading-workspace'
+import { createRecommendationStats } from '../../recommendations/recommendation-stats'
+import { type WereadSnapshot } from '../../weread/weread-data'
 import {
   MAIN_WORKSPACE_CLASS_NAME,
   THREAD_ROOT_CLASS_NAME,
-} from '../../sidebar-layout'
+} from '../../layout/sidebar-layout'
 import { ChatSidebar } from './ChatSidebar'
 import { Composer } from './Composer'
 import { EmptyThread } from './EmptyThread'
@@ -18,12 +20,18 @@ import { MainHeader } from './MainHeader'
 import { RecommendationStatsPanel } from './RecommendationStatsPanel'
 import { SettingsModal } from './SettingsModal'
 import { ThreadMessages } from './ThreadMessages'
+import { useThreadMotion } from './use-thread-motion'
 
 export type ThreadProps = {
   clientConfig: BookAgentClientConfig
   userMemory: UserMemoryView
+  wereadSnapshot: WereadSnapshot
+  readingWorkspace: ReadingWorkspace
+  isWereadSyncing: boolean
   onClientConfigChange: (config: BookAgentClientConfig) => void
   onUserMemoryChange: (memory: UserMemoryView) => void
+  onReadingWorkspaceChange: (workspace: ReadingWorkspace) => void
+  onSyncWeread: () => void
   isModelConfigured: boolean
   chats: ChatSummary[]
   conversationSnapshots: ChatConversationSnapshot[]
@@ -36,8 +44,13 @@ export type ThreadProps = {
 export const Thread = ({
   clientConfig,
   userMemory,
+  wereadSnapshot,
+  readingWorkspace,
+  isWereadSyncing,
   onClientConfigChange,
   onUserMemoryChange,
+  onReadingWorkspaceChange,
+  onSyncWeread,
   isModelConfigured,
   chats,
   conversationSnapshots,
@@ -46,6 +59,7 @@ export const Thread = ({
   onSelectChat,
   onDeleteChat,
 }: ThreadProps) => {
+  const threadRootRef = useRef<HTMLDivElement>(null)
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false)
@@ -78,8 +92,15 @@ export const Thread = ({
   const toggleSidebar = () => setIsSidebarCollapsed((value) => !value)
   const toggleStatsPanel = () => setIsStatsPanelOpen((value) => !value)
 
+  useThreadMotion({
+    rootRef: threadRootRef,
+    activeChatId,
+    isSidebarCollapsed,
+    isStatsPanelOpen,
+  })
+
   return (
-    <ThreadPrimitive.Root className={THREAD_ROOT_CLASS_NAME}>
+    <ThreadPrimitive.Root ref={threadRootRef} className={THREAD_ROOT_CLASS_NAME}>
       <ChatSidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -92,7 +113,11 @@ export const Thread = ({
         onToggle={toggleSidebar}
       />
 
-      <main className={MAIN_WORKSPACE_CLASS_NAME}>
+      <main
+        className={MAIN_WORKSPACE_CLASS_NAME}
+        data-thread-main
+        data-thread-motion="intro"
+      >
         <MainHeader
           title={headerTitle}
           provider={clientConfig.provider}
@@ -110,7 +135,10 @@ export const Thread = ({
           onOpenStatsDialog={() => setIsStatsDialogOpen(true)}
         />
 
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-7 md:px-10">
+        <ThreadPrimitive.Viewport
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-7 md:px-10"
+          data-thread-viewport
+        >
           <ThreadPrimitive.Empty>
             <EmptyThread />
           </ThreadPrimitive.Empty>
@@ -126,8 +154,14 @@ export const Thread = ({
       <RecommendationStatsPanel
         currentStats={currentStats}
         allStats={allStats}
+        userMemory={userMemory}
+        wereadSnapshot={wereadSnapshot}
+        readingWorkspace={readingWorkspace}
+        isWereadSyncing={isWereadSyncing}
         isDesktopOpen={isStatsPanelOpen}
         isDialogOpen={isStatsDialogOpen}
+        onSyncWeread={onSyncWeread}
+        onReadingWorkspaceChange={onReadingWorkspaceChange}
         onCloseDesktop={() => setIsStatsPanelOpen(false)}
         onDialogOpenChange={setIsStatsDialogOpen}
       />

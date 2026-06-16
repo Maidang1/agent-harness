@@ -4,12 +4,14 @@ mod config;
 mod memory;
 mod metadata;
 mod openrouter;
+mod weread;
 
 use codex::CodexRunState;
 use commands::{
     cancel_codex_run, clear_user_memory, generate_user_memory_from_prompt, get_app_metadata,
-    get_codex_auth_status, get_preference_memory, get_user_memory, save_user_memory,
-    start_codex_chat_run,
+    get_codex_auth_status, get_preference_memory, get_reading_workspace, get_user_memory,
+    get_weread_book_notes, get_weread_snapshot, save_reading_workspace, save_user_memory,
+    start_codex_chat_run, sync_weread_snapshot,
 };
 use memory::MemoryState;
 
@@ -26,9 +28,14 @@ pub fn run() {
             get_app_metadata,
             get_codex_auth_status,
             get_preference_memory,
+            get_reading_workspace,
             get_user_memory,
+            get_weread_book_notes,
+            get_weread_snapshot,
+            save_reading_workspace,
             save_user_memory,
-            start_codex_chat_run
+            start_codex_chat_run,
+            sync_weread_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -100,5 +107,66 @@ mod module_contract_tests {
             "手动偏好短篇小说；最近想读文学小说"
         );
         assert_eq!(preference_memory.queries, vec!["最近想读文学小说"]);
+    }
+}
+
+#[cfg(test)]
+mod weread_contract_tests {
+    use serde_json::json;
+
+    use crate::weread::{
+        build_gateway_payload, load_weread_snapshot, mark_snapshot_sync_failed,
+        normalize_book_progress, normalize_notebook_count, save_weread_snapshot,
+        WEREAD_SKILL_VERSION,
+    };
+
+    #[test]
+    fn gateway_payload_flattens_business_params() {
+        let payload = build_gateway_payload(
+            "/user/notebooks",
+            json!({
+                "count": 100,
+                "lastSort": 1516907353,
+            }),
+        );
+
+        assert_eq!(payload["api_name"], "/user/notebooks");
+        assert_eq!(payload["skill_version"], WEREAD_SKILL_VERSION);
+        assert_eq!(payload["count"], 100);
+        assert_eq!(payload["lastSort"], 1516907353);
+        assert!(payload.get("params").is_none());
+    }
+
+    #[test]
+    fn notebook_count_uses_reviews_highlights_and_bookmarks() {
+        assert_eq!(normalize_notebook_count(2, 3, 4), 9);
+    }
+
+    #[test]
+    fn progress_keeps_zero_to_one_hundred_percent_scale() {
+        assert_eq!(normalize_book_progress(1), 1);
+        assert_eq!(normalize_book_progress(100), 100);
+        assert_eq!(normalize_book_progress(230), 100);
+    }
+
+    #[test]
+    fn snapshot_cache_recovers_bad_json_and_marks_failed_sync() {
+        let path =
+            std::env::temp_dir().join(format!("book-agent-weread-{}.json", std::process::id()));
+        std::fs::write(&path, "{bad json").unwrap();
+
+        let loaded = load_weread_snapshot(&path).unwrap();
+
+        assert_eq!(loaded.status, "empty");
+        assert_eq!(loaded.shelf.total_count, 0);
+
+        let snapshot = mark_snapshot_sync_failed(loaded, "网络失败", 1700000000000);
+        let saved = save_weread_snapshot(&path, &snapshot).unwrap();
+        let reloaded = load_weread_snapshot(&path).unwrap();
+
+        assert_eq!(saved.status, "failed");
+        assert_eq!(reloaded.error_message, "网络失败");
+
+        let _ = std::fs::remove_file(path);
     }
 }

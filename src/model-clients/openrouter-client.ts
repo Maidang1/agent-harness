@@ -6,11 +6,13 @@ import {
   type BookPreferenceCategory,
   type BookAgentClientConfig,
   type OpenRouterClientConfig,
-} from './client-config.ts'
+} from '../config/client-config.ts'
 import {
   type ReadingPlanMemoryView,
   type UserMemoryView,
-} from './memory-data.ts'
+} from '../memory/memory-data.ts'
+import { type ReadingWorkspace } from '../reading/reading-workspace.ts'
+import { type WereadSnapshot } from '../weread/weread-data.ts'
 
 export const SYSTEM_PROMPT = `你是一个专业的读书推荐助手，名为「JIAJIA」。
 
@@ -37,6 +39,11 @@ export type OpenRouterMessage = {
 export type BookRecommendationInputMessage = {
   role: string
   content: string
+}
+
+export type ReadingContext = {
+  wereadSnapshot?: WereadSnapshot
+  readingWorkspace?: ReadingWorkspace
 }
 
 export type OpenRouterChatRequest = {
@@ -167,6 +174,7 @@ export const buildBookRecommendationMessages = (
   messages: BookRecommendationInputMessage[],
   config: BookAgentClientConfig,
   userMemory: UserMemoryView,
+  readingContext: ReadingContext = {},
 ): OpenRouterMessage[] => {
   const openrouterMessages: OpenRouterMessage[] = [
     {
@@ -190,6 +198,15 @@ export const buildBookRecommendationMessages = (
     openrouterMessages.push({
       role: 'system',
       content: memoryContext,
+    })
+  }
+
+  const readingContextSummary = createReadingContextSummary(readingContext)
+
+  if (readingContextSummary) {
+    openrouterMessages.push({
+      role: 'system',
+      content: readingContextSummary,
     })
   }
 
@@ -217,10 +234,110 @@ export const buildBookRecommendationPrompt = (
   messages: BookRecommendationInputMessage[],
   config: BookAgentClientConfig,
   userMemory: UserMemoryView,
+  readingContext: ReadingContext = {},
 ) =>
-  buildBookRecommendationMessages(messages, config, userMemory)
+  buildBookRecommendationMessages(messages, config, userMemory, readingContext)
     .map(formatPromptMessage)
     .join('\n\n')
+
+export const createReadingContextSummary = ({
+  wereadSnapshot,
+  readingWorkspace,
+}: ReadingContext) => {
+  const lines: string[] = []
+
+  if (wereadSnapshot) {
+    lines.push('微信读书上下文：')
+    lines.push(
+      `同步状态：${wereadSnapshot.status}${
+        wereadSnapshot.errorMessage ? `，${wereadSnapshot.errorMessage}` : ''
+      }。`,
+    )
+
+    if (wereadSnapshot.shelf.totalCount > 0) {
+      lines.push(
+        `书架 ${wereadSnapshot.shelf.totalCount} 个条目：${wereadSnapshot.shelf.bookCount} 本电子书、${wereadSnapshot.shelf.albumCount} 个有声书、${wereadSnapshot.shelf.finishedBookCount} 本已读、${wereadSnapshot.shelf.readingBookCount} 本在读。`,
+      )
+    }
+
+    if (wereadSnapshot.readingStats.totalReadTimeSeconds > 0) {
+      lines.push(
+        `本月阅读：${wereadSnapshot.readingStats.readDays} 天，${wereadSnapshot.readingStats.totalReadTimeLabel}，自然日均 ${wereadSnapshot.readingStats.dayAverageReadTimeLabel}。`,
+      )
+    }
+
+    const categories = wereadSnapshot.readingStats.preferCategories
+      .slice(0, 4)
+      .map((category) => category.title)
+
+    if (categories.length > 0) {
+      lines.push(`微信读书偏好分类：${categories.join('、')}。`)
+    }
+
+    const recent = wereadSnapshot.shelf.recentItems
+      .slice(0, 4)
+      .map((item) => item.title)
+
+    if (recent.length > 0) {
+      lines.push(`最近阅读：${recent.join('、')}。`)
+    }
+
+    const noteBooks = wereadSnapshot.notebooks.books
+      .slice(0, 4)
+      .map((book) => `${book.title}（${book.totalNoteCount} 条）`)
+
+    if (noteBooks.length > 0) {
+      lines.push(`笔记较多：${noteBooks.join('、')}。`)
+    }
+
+    const wereadRecommendations = wereadSnapshot.recommendedBooks
+      .slice(0, 3)
+      .map((book) => book.title)
+
+    if (wereadRecommendations.length > 0) {
+      lines.push(`微信读书推荐：${wereadRecommendations.join('、')}。`)
+    }
+  }
+
+  if (readingWorkspace) {
+    const activePlans = readingWorkspace.plans
+      .filter((plan) => plan.status === 'active')
+      .slice(0, 3)
+      .map((plan) => `${plan.title}：${plan.goal}`)
+    const cards = readingWorkspace.cards
+      .filter((card) => card.status !== 'read')
+      .slice(0, 5)
+      .map((card) => card.title)
+    const reviews = readingWorkspace.reviews
+      .slice(0, 3)
+      .map((review) => review.title)
+
+    if (activePlans.length > 0 || cards.length > 0 || reviews.length > 0) {
+      lines.push('本地阅读工作区：')
+    }
+
+    if (activePlans.length > 0) {
+      lines.push(`活跃计划：${activePlans.join('；')}。`)
+    }
+
+    if (cards.length > 0) {
+      lines.push(`本地待读：${cards.join('、')}。`)
+    }
+
+    if (reviews.length > 0) {
+      lines.push(`已有复盘：${reviews.join('、')}。`)
+    }
+  }
+
+  if (lines.length === 0) {
+    return ''
+  }
+
+  lines.push('每条推荐必须给出推荐依据，优先关联用户偏好、历史提问、读书计划或微信读书数据。')
+  lines.push('复盘任务使用固定结构：核心观点、关键划线、我的理解、可执行行动、延伸阅读。')
+
+  return lines.join('\n')
+}
 
 const trimChatCompletionPath = (value: string) =>
   value.replace(/\/chat\/completions\/?$/, '') || '/'

@@ -1,7 +1,7 @@
 import {
   BOOK_PREFERENCE_CATEGORIES,
   type BookPreferenceCategory,
-} from './client-config.ts'
+} from '../config/client-config.ts'
 import {
   type LearningStatusMemoryView,
   type ReadingPlanMemoryView,

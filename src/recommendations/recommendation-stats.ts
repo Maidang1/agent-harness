@@ -1,14 +1,14 @@
 import {
   BOOK_PREFERENCE_CATEGORIES,
   type BookUserPreferences,
-} from './client-config.ts'
-import { type UserMemoryView } from './memory-data.ts'
-import { type ChatConversationSnapshot } from './chat-store.ts'
+} from '../config/client-config.ts'
+import { type UserMemoryView } from '../memory/memory-data.ts'
+import { type ChatConversationSnapshot } from '../chat/chat-store.ts'
 
 export type {
   ChatAnalyticsMessage,
   ChatConversationSnapshot,
-} from './chat-store.ts'
+} from '../chat/chat-store.ts'
 
 export type RecommendationStatsScope = 'current' | 'all'
 

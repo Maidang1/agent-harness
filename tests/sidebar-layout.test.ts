@@ -12,7 +12,7 @@ import {
   SIDEBAR_TITLEBAR_CLASS_NAME,
   THREAD_ROOT_CLASS_NAME,
   TITLEBAR_TRAFFIC_LIGHT_CLEARANCE_PX,
-} from '../src/sidebar-layout.ts'
+} from '../src/layout/sidebar-layout.ts'
 
 describe('sidebar layout', () => {
   test('keeps titlebar controls clear of macOS traffic lights', () => {

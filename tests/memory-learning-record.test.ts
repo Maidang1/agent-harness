@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { createDefaultUserMemory } from '../src/memory-data.ts'
+import { createDefaultUserMemory } from '../src/memory/memory-data.ts'
 import {
   createMemoryLearningRecord,
   hasMemoryLearningRecord,
-} from '../src/memory-learning-record.ts'
+} from '../src/memory/memory-learning-record.ts'
 
 describe('memory learning record', () => {
   test('builds a compact record for the settings audit panel', () => {

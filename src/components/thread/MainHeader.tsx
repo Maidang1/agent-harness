@@ -12,10 +12,10 @@ import {
   MAIN_HEADER_CLASS_NAME,
   MAIN_HEADER_TITLE_CLASS_NAME,
   SIDEBAR_TOGGLE_ICON_CLASS_NAME,
-} from '../../sidebar-layout'
+} from '../../layout/sidebar-layout'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { type BookAgentProvider } from '../../client-config'
+import { type BookAgentProvider } from '../../config/client-config'
 
 type MainHeaderProps = {
   title: string

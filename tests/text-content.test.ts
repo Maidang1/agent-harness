@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { contentToText, truncateTextTitle } from '../src/text-content.ts'
+import { contentToText, truncateTextTitle } from '../src/chat/text-content.ts'
 
 describe('text content helpers', () => {
   test('extracts text from string and text parts', () => {

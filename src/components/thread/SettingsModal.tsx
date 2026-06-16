@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -64,27 +65,28 @@ import {
   type CodexClientConfig,
   type BookPersonaPresetId,
   type BookPreferenceCategory,
-} from '../../client-config'
+} from '../../config/client-config'
 import {
   getCodexAuthStatus,
   type CodexAuthStatus,
-} from '../../codex-client'
+} from '../../model-clients/codex-client'
 import {
   createClearedUserMemory,
   createDefaultUserMemory,
   createSimpleEditedUserMemory,
   type UserMemoryView,
-} from '../../memory-data'
+} from '../../memory/memory-data'
 import {
   createMemoryLearningRecord,
   hasMemoryLearningRecord,
   type MemoryLearningRecord,
-} from '../../memory-learning-record'
+} from '../../memory/memory-learning-record'
 import {
   clearUserMemory,
   saveUserMemory,
-} from '../../memory-store'
-import { createSettingsClientConfig } from '../../settings-config'
+} from '../../memory/memory-store'
+import { createSettingsClientConfig } from '../../config/settings-config'
+import { gsap, shouldReduceMotion, useGSAP } from '@/lib/gsap'
 
 type SettingsTab = 'api' | 'persona' | 'memory'
 
@@ -103,6 +105,7 @@ export const SettingsModal = ({
   onMemoryChange,
   onClose,
 }: SettingsModalProps) => {
+  const settingsFormRef = useRef<HTMLFormElement>(null)
   const [activeTab, setActiveTab] = useState<SettingsTab>('api')
   const [provider, setProvider] = useState<BookAgentProvider>(config.provider)
   const [apiKey, setApiKey] = useState(config.openrouter.apiKey)
@@ -262,6 +265,28 @@ export const SettingsModal = ({
       .finally(() => setIsSaving(false))
   }
 
+  useGSAP(() => {
+    const targets = settingsFormRef.current?.querySelectorAll<HTMLElement>(
+      '[data-settings-tab][data-state="active"] > *',
+    )
+
+    if (shouldReduceMotion() || !targets?.length) {
+      return
+    }
+
+    gsap.from(targets, {
+      autoAlpha: 0,
+      y: 8,
+      duration: 0.22,
+      ease: 'power2.out',
+      stagger: 0.025,
+      clearProps: 'transform,opacity,visibility',
+    })
+  }, {
+    dependencies: [activeTab],
+    revertOnUpdate: true,
+  })
+
   return (
     <Dialog
       open
@@ -272,7 +297,11 @@ export const SettingsModal = ({
       }}
     >
       <DialogContent className="flex max-h-[90dvh] gap-0 overflow-hidden border border-glass-edge bg-popover/92 p-0 shadow-[0_30px_90px_-55px_var(--glass-shadow)] backdrop-blur-2xl sm:max-w-3xl">
-        <form onSubmit={handleSubmit} className="flex max-h-[90dvh] min-h-0 flex-1 flex-col">
+        <form
+          ref={settingsFormRef}
+          onSubmit={handleSubmit}
+          className="flex max-h-[90dvh] min-h-0 flex-1 flex-col"
+        >
           <DialogHeader className="shrink-0 border-b border-hairline bg-card/35 p-5 pr-14">
             <DialogTitle className="text-[15px] font-semibold">设置</DialogTitle>
             <DialogDescription className="text-[12.5px]">
@@ -300,7 +329,7 @@ export const SettingsModal = ({
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="api" className="m-0 min-h-0 overflow-y-auto p-5">
+            <TabsContent value="api" className="m-0 min-h-0 overflow-y-auto p-5" data-settings-tab>
               <ApiSettings
                 provider={provider}
                 apiKey={apiKey}
@@ -321,7 +350,7 @@ export const SettingsModal = ({
               />
             </TabsContent>
 
-            <TabsContent value="persona" className="m-0 min-h-0 overflow-y-auto p-5">
+            <TabsContent value="persona" className="m-0 min-h-0 overflow-y-auto p-5" data-settings-tab>
               <PersonaSettingsPanel
                 personaPresetId={personaPresetId}
                 useCustomPersona={useCustomPersona}
@@ -332,7 +361,7 @@ export const SettingsModal = ({
               />
             </TabsContent>
 
-            <TabsContent value="memory" className="m-0 min-h-0 overflow-y-auto p-5">
+            <TabsContent value="memory" className="m-0 min-h-0 overflow-y-auto p-5" data-settings-tab>
               <MemorySettingsPanel
                 memoryEnabled={memoryEnabled}
                 autoGenerateFromPrompt={autoGenerateFromPrompt}

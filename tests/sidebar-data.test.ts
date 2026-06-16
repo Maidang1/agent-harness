@@ -6,7 +6,7 @@ import {
   createThreadTitle,
   normalizePreferenceMemory,
   type SidebarMessage,
-} from '../src/sidebar-data.ts'
+} from '../src/chat/sidebar-data.ts'
 
 describe('sidebar data', () => {
   test('builds the thread title from the latest user message', () => {

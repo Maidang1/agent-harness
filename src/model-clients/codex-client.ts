@@ -3,7 +3,7 @@ import {
   listen,
   type UnlistenFn,
 } from '@tauri-apps/api/event'
-import { type BookAgentClientConfig } from './client-config.ts'
+import { type BookAgentClientConfig } from '../config/client-config.ts'
 
 export type CodexAuthStatus = {
   authMode: string

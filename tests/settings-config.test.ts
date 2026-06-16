@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { createSettingsClientConfig } from '../src/settings-config.ts'
+import { createSettingsClientConfig } from '../src/config/settings-config.ts'
 import {
   BOOK_PERSONA_PRESETS,
   BOOK_PREFERENCE_CATEGORIES,
@@ -10,7 +10,7 @@ import {
   DEFAULT_OPENROUTER_BASE_URL,
   DEFAULT_OPENROUTER_MODEL,
   type BookAgentClientConfig,
-} from '../src/client-config.ts'
+} from '../src/config/client-config.ts'
 
 describe('settings config', () => {
   test('creates a client config from settings form values', () => {

@@ -4,15 +4,16 @@ import { describe, test } from 'node:test'
 import {
   buildBookRecommendationPrompt,
   buildBookRecommendationMessages,
+  createReadingContextSummary,
   normalizeOpenRouterServerURL,
   streamOpenRouterChat,
   type OpenRouterChatClient,
-} from '../src/openrouter-client.ts'
+} from '../src/model-clients/openrouter-client.ts'
 import {
   BOOK_PREFERENCE_CATEGORIES,
   createDefaultClientConfig,
-} from '../src/client-config.ts'
-import { createDefaultUserMemory } from '../src/memory-data.ts'
+} from '../src/config/client-config.ts'
+import { createDefaultUserMemory } from '../src/memory/memory-data.ts'
 
 const collectAsync = async <T>(items: AsyncIterable<T>) => {
   const result: T[] = []
@@ -149,6 +150,174 @@ describe('openrouter client', () => {
     assert.match(content, /近期需求：需求 2；需求 3；需求 4/)
     assert.doesNotMatch(content, /需求 1/)
     assert.doesNotMatch(content, /偏好备注/)
+  })
+
+  test('builds recommendation messages with compact WeRead and workspace context', () => {
+    const config = createDefaultClientConfig()
+    const content = buildBookRecommendationMessages(
+      [{ role: 'user', content: '根据我的书架补一个阅读计划' }],
+      config,
+      createDefaultUserMemory(),
+      {
+        wereadSnapshot: {
+          schemaVersion: 1,
+          updatedAt: 1700000000000,
+          status: 'success',
+          errorMessage: '',
+          shelf: {
+            totalCount: 3,
+            bookCount: 2,
+            albumCount: 1,
+            mpCount: 0,
+            publicCount: 3,
+            privateCount: 0,
+            finishedBookCount: 1,
+            readingBookCount: 1,
+            recentItems: [
+              {
+                id: 'book-a',
+                kind: 'book',
+                title: '小王子',
+                author: '圣埃克苏佩里',
+                category: '文学',
+                cover: '',
+                updatedAt: 1700000000,
+                updatedAtLabel: '2023-11-14',
+                isFinished: true,
+                isPrivate: false,
+                deepLink: 'weread://reading?bId=book-a',
+              },
+            ],
+          },
+          readingStats: {
+            mode: 'monthly',
+            readDays: 5,
+            totalReadTimeSeconds: 3600,
+            totalReadTimeLabel: '1小时',
+            dayAverageReadTimeSeconds: 720,
+            dayAverageReadTimeLabel: '12分钟',
+            preferCategories: [
+              {
+                title: '文学',
+                readingTimeSeconds: 3600,
+                readingTimeLabel: '1小时',
+                readingCount: 2,
+              },
+            ],
+            longestBooks: [],
+          },
+          notebooks: {
+            totalBookCount: 1,
+            totalNoteCount: 4,
+            books: [
+              {
+                bookId: 'book-a',
+                title: '小王子',
+                author: '圣埃克苏佩里',
+                cover: '',
+                reviewCount: 1,
+                noteCount: 2,
+                bookmarkCount: 1,
+                totalNoteCount: 4,
+                readingProgress: 100,
+                markedStatus: 1,
+                sort: 1700000000,
+                sortLabel: '2023-11-14',
+              },
+            ],
+          },
+          recommendedBooks: [
+            {
+              bookId: 'book-b',
+              title: '山茶文具店',
+              author: '小川糸',
+              cover: '',
+              category: '文学',
+              intro: '',
+              reason: '为你推荐',
+              rating: 88,
+              deepLink: 'weread://reading?bId=book-b',
+            },
+          ],
+        },
+        readingWorkspace: {
+          schemaVersion: 1,
+          cards: [
+            {
+              id: 'card-a',
+              title: '也许你该找个人聊聊',
+              author: '',
+              reason: '情绪友好',
+              scenarios: ['心理成长'],
+              difficulty: '',
+              estimatedReadingTime: '',
+              evidence: '用户偏好低压力阅读',
+              deepLink: '',
+              status: 'planned',
+              createdAt: 1700000000000,
+              updatedAt: 1700000000000,
+            },
+          ],
+          plans: [],
+          reviews: [],
+        },
+      },
+    )
+      .map((message) => message.content)
+      .join('\n')
+
+    assert.match(content, /微信读书上下文/)
+    assert.match(content, /书架 3 个条目/)
+    assert.match(content, /最近阅读：小王子/)
+    assert.match(content, /笔记较多：小王子/)
+    assert.match(content, /本地待读：也许你该找个人聊聊/)
+    assert.match(content, /每条推荐必须给出推荐依据/)
+  })
+
+  test('creates a bounded reading context summary', () => {
+    const summary = createReadingContextSummary({
+      wereadSnapshot: {
+        schemaVersion: 1,
+        updatedAt: 1,
+        status: 'failed',
+        errorMessage: '网络失败',
+        shelf: {
+          totalCount: 0,
+          bookCount: 0,
+          albumCount: 0,
+          mpCount: 0,
+          publicCount: 0,
+          privateCount: 0,
+          finishedBookCount: 0,
+          readingBookCount: 0,
+          recentItems: [],
+        },
+        readingStats: {
+          mode: 'monthly',
+          readDays: 0,
+          totalReadTimeSeconds: 0,
+          totalReadTimeLabel: '0分钟',
+          dayAverageReadTimeSeconds: 0,
+          dayAverageReadTimeLabel: '0分钟',
+          preferCategories: [],
+          longestBooks: [],
+        },
+        notebooks: {
+          totalBookCount: 0,
+          totalNoteCount: 0,
+          books: [],
+        },
+        recommendedBooks: [],
+      },
+      readingWorkspace: {
+        schemaVersion: 1,
+        cards: [],
+        plans: [],
+        reviews: [],
+      },
+    })
+
+    assert.match(summary, /同步状态：failed，网络失败/)
   })
 
   test('builds a provider-neutral Codex prompt from recommendation messages', () => {

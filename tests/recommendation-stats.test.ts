@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { BOOK_PREFERENCE_CATEGORIES } from '../src/client-config.ts'
-import { createDefaultUserMemory, type UserMemoryView } from '../src/memory-data.ts'
+import { BOOK_PREFERENCE_CATEGORIES } from '../src/config/client-config.ts'
+import { createDefaultUserMemory, type UserMemoryView } from '../src/memory/memory-data.ts'
 import {
   createRecommendationStats,
   type ChatConversationSnapshot,
-} from '../src/recommendation-stats.ts'
+} from '../src/recommendations/recommendation-stats.ts'
 
 const conversationA: ChatConversationSnapshot = {
   id: 'chat-a',

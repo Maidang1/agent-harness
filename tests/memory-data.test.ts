@@ -8,7 +8,7 @@ import {
   createMemoryWithLearningStatus,
   createSimpleEditedUserMemory,
   normalizeUserMemory,
-} from '../src/memory-data.ts'
+} from '../src/memory/memory-data.ts'
 
 describe('user memory data', () => {
   test('creates an empty structured memory by default', () => {
