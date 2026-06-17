@@ -36,6 +36,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,5 +44,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0NEM0REUxNERBRUIzRkUKUldUK3M2NU40VTFNcFA0ajM1dklHMmdJbkJlcU91bGcvd0ZQM1REUjFmTU1PZXoybHZFQXlHNEIK",
+      "endpoints": [
+        "https://github.com/Maidang1/agent-harness/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

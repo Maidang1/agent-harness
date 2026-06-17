@@ -14,6 +14,7 @@ import {
 import { type UserMemoryView } from '../../memory/memory-data'
 import { type ReadingWorkspace } from '../../reading/reading-workspace'
 import { type WereadSnapshot } from '../../weread/weread-data'
+import { type AppUpdateState } from '../../updates/app-updates'
 import { Thread } from './Thread'
 
 type ChatWorkspaceProps = {
@@ -24,10 +25,15 @@ type ChatWorkspaceProps = {
   wereadSnapshot: WereadSnapshot
   readingWorkspace: ReadingWorkspace
   isWereadSyncing: boolean
+  appVersion: string
+  appUpdateState: AppUpdateState
   onClientConfigChange: (config: BookAgentClientConfig) => void
   onUserMemoryChange: (memory: UserMemoryView) => void
   onReadingWorkspaceChange: (workspace: ReadingWorkspace) => void
   onSyncWeread: () => void
+  onCheckForAppUpdate: () => void
+  onInstallAppUpdate: () => void
+  onRestartAfterUpdate: () => void
   chats: ChatSummary[]
   conversationSnapshots: ChatConversationSnapshot[]
   onNewChat: () => void
@@ -43,10 +49,15 @@ export const ChatWorkspace = ({
   wereadSnapshot,
   readingWorkspace,
   isWereadSyncing,
+  appVersion,
+  appUpdateState,
   onClientConfigChange,
   onUserMemoryChange,
   onReadingWorkspaceChange,
   onSyncWeread,
+  onCheckForAppUpdate,
+  onInstallAppUpdate,
+  onRestartAfterUpdate,
   chats,
   conversationSnapshots,
   onNewChat,
@@ -64,10 +75,15 @@ export const ChatWorkspace = ({
         wereadSnapshot={wereadSnapshot}
         readingWorkspace={readingWorkspace}
         isWereadSyncing={isWereadSyncing}
+        appVersion={appVersion}
+        appUpdateState={appUpdateState}
         onClientConfigChange={onClientConfigChange}
         onUserMemoryChange={onUserMemoryChange}
         onReadingWorkspaceChange={onReadingWorkspaceChange}
         onSyncWeread={onSyncWeread}
+        onCheckForAppUpdate={onCheckForAppUpdate}
+        onInstallAppUpdate={onInstallAppUpdate}
+        onRestartAfterUpdate={onRestartAfterUpdate}
         isModelConfigured={isBookAgentConfigured(clientConfig)}
         chats={chats}
         conversationSnapshots={conversationSnapshots}

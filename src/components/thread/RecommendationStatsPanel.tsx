@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type KeyboardEvent, type PointerEvent } from 'react'
 import {
   BarChart3,
   BookMarked,
@@ -68,8 +68,14 @@ type RecommendationStatsPanelProps = {
   isWereadSyncing: boolean
   isDesktopOpen: boolean
   isDialogOpen: boolean
+  desktopWidth: number
+  minDesktopWidth: number
+  maxDesktopWidth: number
+  isDesktopResizing: boolean
   onSyncWeread: () => void
   onReadingWorkspaceChange: (workspace: ReadingWorkspace) => void
+  onDesktopResizePointerDown: (event: PointerEvent<HTMLDivElement>) => void
+  onDesktopResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
   onCloseDesktop: () => void
   onDialogOpenChange: (open: boolean) => void
 }
@@ -83,8 +89,14 @@ export const RecommendationStatsPanel = ({
   isWereadSyncing,
   isDesktopOpen,
   isDialogOpen,
+  desktopWidth,
+  minDesktopWidth,
+  maxDesktopWidth,
+  isDesktopResizing,
   onSyncWeread,
   onReadingWorkspaceChange,
+  onDesktopResizePointerDown,
+  onDesktopResizeKeyDown,
   onCloseDesktop,
   onDialogOpenChange,
 }: RecommendationStatsPanelProps) => {
@@ -94,7 +106,24 @@ export const RecommendationStatsPanel = ({
   return (
     <>
       {isDesktopOpen ? (
-        <aside className={INSPECTOR_PANEL_CLASS_NAME}>
+        <aside
+          className={`${INSPECTOR_PANEL_CLASS_NAME} ${isDesktopResizing ? 'transition-none' : ''}`}
+          style={{ width: desktopWidth }}
+        >
+          <div
+            role="separator"
+            aria-label="调整阅读中枢宽度"
+            aria-orientation="vertical"
+            aria-valuemin={minDesktopWidth}
+            aria-valuemax={maxDesktopWidth}
+            aria-valuenow={desktopWidth}
+            tabIndex={0}
+            onPointerDown={onDesktopResizePointerDown}
+            onKeyDown={onDesktopResizeKeyDown}
+            className="group absolute inset-y-0 left-0 z-20 w-2 cursor-col-resize touch-none outline-none"
+          >
+            <div className="absolute inset-y-0 left-0 w-px bg-transparent transition-colors group-hover:bg-system-accent/55 group-focus-visible:bg-system-accent" />
+          </div>
           <ReadingHubContent
             stats={stats}
             scope={scope}

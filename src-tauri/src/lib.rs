@@ -21,6 +21,8 @@ pub fn run() {
         .manage(CodexRunState::default())
         .manage(MemoryState::default())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             cancel_codex_run,
             clear_user_memory,

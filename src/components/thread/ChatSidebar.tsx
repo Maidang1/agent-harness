@@ -1,3 +1,4 @@
+import { type KeyboardEvent, type PointerEvent } from 'react'
 import {
   MessageCircle,
   PanelLeftClose,
@@ -30,6 +31,12 @@ type ChatSidebarProps = {
   isConfigOpen: boolean
   onOpenConfig: () => void
   isCollapsed: boolean
+  width: number
+  minWidth: number
+  maxWidth: number
+  isResizing: boolean
+  onResizePointerDown: (event: PointerEvent<HTMLDivElement>) => void
+  onResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
   onToggle: () => void
 }
 
@@ -42,17 +49,25 @@ export const ChatSidebar = ({
   isConfigOpen,
   onOpenConfig,
   isCollapsed,
+  width,
+  minWidth,
+  maxWidth,
+  isResizing,
+  onResizePointerDown,
+  onResizeKeyDown,
   onToggle,
 }: ChatSidebarProps) => (
   <aside
     data-thread-sidebar
     className={cn(
       SIDEBAR_PANEL_CLASS_NAME,
+      isResizing && 'transition-none',
       isCollapsed && 'w-0 border-r-0',
     )}
+    style={{ width: isCollapsed ? 0 : width }}
     aria-hidden={isCollapsed}
   >
-    <div className="flex h-full w-72 shrink-0 flex-col">
+    <div className="flex h-full w-full min-w-0 shrink-0 flex-col">
       <div
         data-tauri-drag-region
         className={cn(SIDEBAR_TITLEBAR_CLASS_NAME, 'justify-end')}
@@ -143,6 +158,22 @@ export const ChatSidebar = ({
         </Button>
       </div>
     </div>
+    {isCollapsed ? null : (
+      <div
+        role="separator"
+        aria-label="调整侧边栏宽度"
+        aria-orientation="vertical"
+        aria-valuemin={minWidth}
+        aria-valuemax={maxWidth}
+        aria-valuenow={width}
+        tabIndex={0}
+        onPointerDown={onResizePointerDown}
+        onKeyDown={onResizeKeyDown}
+        className="group absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none outline-none"
+      >
+        <div className="absolute inset-y-0 right-0 w-px bg-transparent transition-colors group-hover:bg-system-accent/55 group-focus-visible:bg-system-accent" />
+      </div>
+    )}
   </aside>
 )
 
