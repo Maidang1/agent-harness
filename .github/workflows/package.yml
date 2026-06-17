@@ -2,17 +2,24 @@ name: Package Desktop App
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'GitHub release tag to create or update, for example v0.1.0'
+        required: true
+        type: string
   push:
     tags:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
     name: Package ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
     strategy:
       fail-fast: false
@@ -78,5 +85,12 @@ jobs:
         with:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: JIAJIA ${{ env.RELEASE_TAG }}
+          releaseBody: See the assets to download this version and install.
+          releaseDraft: false
+          prerelease: false
+          retryAttempts: 3
+          releaseAssetNamePattern: book-agent-${{ env.RELEASE_TAG }}-[platform]-[arch][setup][ext]
           uploadWorkflowArtifacts: true
           workflowArtifactNamePattern: book-agent-[platform]-[arch]-[bundle]
