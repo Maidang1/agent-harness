@@ -8,6 +8,7 @@ import {
   DEFAULT_CODEX_PATH,
   DEFAULT_CODEX_SANDBOX,
   DEFAULT_BOOK_PERSONA_PRESET_ID,
+  OPENROUTER_MODEL_OPTIONS,
   loadClientConfig,
   saveClientConfig,
   type BookAgentClientConfig,
@@ -65,6 +66,17 @@ describe('client config preferences', () => {
       cwd: '',
       sandbox: DEFAULT_CODEX_SANDBOX,
     })
+  })
+
+  test('exposes supported OpenRouter model choices', () => {
+    assert.deepEqual(
+      OPENROUTER_MODEL_OPTIONS.map((option) => option.id),
+      [
+        'deepseek/deepseek-v4-flash',
+        'qwen/qwen3.5-flash-02-23',
+        'xiaomi/mimo-v2.5',
+      ],
+    )
   })
 
   test('keeps selected favorite categories when config is saved and loaded', () => {

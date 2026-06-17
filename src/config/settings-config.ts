@@ -11,6 +11,7 @@ import {
 export type SettingsClientConfigInput = {
   provider: BookAgentProvider
   openrouterApiKey: string
+  openrouterModel: string
   wechatApiKey: string
   codex: CodexClientConfig
 }
@@ -23,7 +24,7 @@ export const createSettingsClientConfig = (
   provider: input.provider,
   openrouter: {
     apiKey: input.openrouterApiKey.trim(),
-    model: config.openrouter.model.trim() || DEFAULT_OPENROUTER_MODEL,
+    model: input.openrouterModel.trim() || DEFAULT_OPENROUTER_MODEL,
     baseUrl: config.openrouter.baseUrl.trim() || DEFAULT_OPENROUTER_BASE_URL,
   },
   codex: {
