@@ -46,6 +46,7 @@ describe('settings config', () => {
     assert.deepEqual(createSettingsClientConfig(config, {
       provider: 'codex',
       openrouterApiKey: ' sk-new ',
+      openrouterModel: ' qwen/qwen3.5-flash-02-23 ',
       wechatApiKey: ' weread-new ',
       codex: {
         model: ' gpt-5.4 ',
@@ -57,7 +58,7 @@ describe('settings config', () => {
       provider: 'codex',
       openrouter: {
         apiKey: 'sk-new',
-        model: DEFAULT_OPENROUTER_MODEL,
+        model: 'qwen/qwen3.5-flash-02-23',
         baseUrl: DEFAULT_OPENROUTER_BASE_URL,
       },
       codex: {
@@ -82,4 +83,55 @@ describe('settings config', () => {
       },
     })
   })
+
+  test('falls back to the default OpenRouter model for blank settings input', () => {
+    const config = {
+      ...createMinimalClientConfig(),
+      openrouter: {
+        apiKey: 'sk-old',
+        model: 'xiaomi/mimo-v2.5',
+        baseUrl: DEFAULT_OPENROUTER_BASE_URL,
+      },
+    }
+
+    assert.equal(
+      createSettingsClientConfig(config, {
+        provider: 'openrouter',
+        openrouterApiKey: 'sk-new',
+        openrouterModel: '   ',
+        wechatApiKey: '',
+        codex: config.codex,
+      }).openrouter.model,
+      DEFAULT_OPENROUTER_MODEL,
+    )
+  })
+})
+
+const createMinimalClientConfig = (): BookAgentClientConfig => ({
+  provider: 'openrouter',
+  openrouter: {
+    apiKey: '',
+    model: DEFAULT_OPENROUTER_MODEL,
+    baseUrl: DEFAULT_OPENROUTER_BASE_URL,
+  },
+  codex: {
+    model: '',
+    codexPath: DEFAULT_CODEX_PATH,
+    cwd: '',
+    sandbox: DEFAULT_CODEX_SANDBOX,
+  },
+  wechatApiKey: '',
+  memory: {
+    enabled: true,
+    includeInRecommendations: true,
+    autoGenerateFromPrompt: true,
+  },
+  preferences: {
+    favoriteCategories: [],
+  },
+  persona: {
+    presetId: BOOK_PERSONA_PRESETS[0].id,
+    customPrompt: '',
+    useCustomPrompt: false,
+  },
 })

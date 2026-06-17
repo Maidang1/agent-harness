@@ -60,6 +60,7 @@ import {
 } from '@/components/ui/toggle-group'
 import {
   BOOK_PERSONA_PRESETS,
+  OPENROUTER_MODEL_OPTIONS,
   getBookPersonaPreset,
   isBookPersonaPresetId,
   type BookAgentProvider,
@@ -122,6 +123,9 @@ export const SettingsModal = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
   const [provider, setProvider] = useState<BookAgentProvider>(config.provider)
   const [apiKey, setApiKey] = useState(config.openrouter.apiKey)
+  const [openrouterModel, setOpenrouterModel] = useState(
+    config.openrouter.model,
+  )
   const [codexModel, setCodexModel] = useState(config.codex.model)
   const [codexPath, setCodexPath] = useState(config.codex.codexPath)
   const [codexCwd, setCodexCwd] = useState(config.codex.cwd)
@@ -157,6 +161,7 @@ export const SettingsModal = ({
     ...createSettingsClientConfig(config, {
       provider,
       openrouterApiKey: apiKey,
+      openrouterModel,
       wechatApiKey,
       codex: codexConfig(),
     }),
@@ -336,6 +341,8 @@ export const SettingsModal = ({
                 onProviderChange={setProvider}
                 wechatApiKey={wechatApiKey}
                 onApiKeyChange={handleApiKeyChange}
+                openrouterModel={openrouterModel}
+                onOpenrouterModelChange={setOpenrouterModel}
                 onCodexModelChange={setCodexModel}
                 onCodexPathChange={setCodexPath}
                 onCodexCwdChange={setCodexCwd}
@@ -413,6 +420,8 @@ type ApiSettingsProps = {
   onProviderChange: (value: BookAgentProvider) => void
   wechatApiKey: string
   onApiKeyChange: (event: ChangeEvent<HTMLInputElement>) => void
+  openrouterModel: string
+  onOpenrouterModelChange: (value: string) => void
   onCodexModelChange: (value: string) => void
   onCodexPathChange: (value: string) => void
   onCodexCwdChange: (value: string) => void
@@ -432,6 +441,8 @@ const ApiSettings = ({
   onProviderChange,
   wechatApiKey,
   onApiKeyChange,
+  openrouterModel,
+  onOpenrouterModelChange,
   onCodexModelChange,
   onCodexPathChange,
   onCodexCwdChange,
@@ -466,20 +477,51 @@ const ApiSettings = ({
     </Field>
 
     {provider === 'openrouter' ? (
-      <Field>
-        <FieldLabel htmlFor="openrouter-api-key">OpenRouter API Key</FieldLabel>
-        <Input
-          id="openrouter-api-key"
-          type="password"
-          value={apiKey}
-          onChange={onApiKeyChange}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="sk-or-..."
-          autoFocus
-        />
-        <FieldDescription>密钥仅保存在本地。</FieldDescription>
-      </Field>
+      <>
+        <Field>
+          <FieldLabel htmlFor="openrouter-api-key">OpenRouter API Key</FieldLabel>
+          <Input
+            id="openrouter-api-key"
+            type="password"
+            value={apiKey}
+            onChange={onApiKeyChange}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="sk-or-..."
+            autoFocus
+          />
+          <FieldDescription>密钥仅保存在本地。</FieldDescription>
+        </Field>
+
+        <Field>
+          <FieldLabel>OpenRouter 模型</FieldLabel>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={openrouterModel}
+            onValueChange={(value) => {
+              if (value) {
+                onOpenrouterModelChange(value)
+              }
+            }}
+            className="grid w-full grid-cols-1 items-stretch gap-2"
+          >
+            {OPENROUTER_MODEL_OPTIONS.map((option) => (
+              <ToggleGroupItem
+                key={option.id}
+                value={option.id}
+                className="h-auto min-h-12 flex-col items-start justify-center rounded-xl border-glass-edge bg-card/25 px-3 py-2 text-left whitespace-normal data-[state=on]:bg-system-accent-soft data-[state=on]:text-system-accent"
+              >
+                <span className="text-sm font-medium">{option.label}</span>
+                <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                  {option.id}
+                </span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <FieldDescription>当前对话和自动记忆提取使用这个模型。</FieldDescription>
+        </Field>
+      </>
     ) : (
       <CodexSettingsPanel
         codexModel={codexModel}

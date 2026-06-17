@@ -90,6 +90,21 @@ export const DEFAULT_CODEX_PATH = 'codex'
 export const DEFAULT_CODEX_CWD = ''
 export const DEFAULT_CODEX_SANDBOX: CodexSandboxMode = 'read-only'
 
+export const OPENROUTER_MODEL_OPTIONS = [
+  {
+    id: DEFAULT_OPENROUTER_MODEL,
+    label: 'DeepSeek V4 Flash',
+  },
+  {
+    id: 'qwen/qwen3.5-flash-02-23',
+    label: 'Qwen 3.5 Flash',
+  },
+  {
+    id: 'xiaomi/mimo-v2.5',
+    label: 'MiMo v2.5',
+  },
+] as const
+
 const STORAGE_KEY = 'book-agent.client-config'
 const LEGACY_OPENROUTER_STORAGE_KEY = 'book-agent.openrouter-config'
 
