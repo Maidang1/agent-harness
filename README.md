@@ -12,6 +12,7 @@ React + Vite frontend with a local Tauri AG-UI adapter, OpenRouter calls, and a 
 - `src/chat/`: conversation persistence, sidebar data, and text content helpers.
 - `src/recommendations/`: recommendation analytics and stats.
 - `src/layout/`: shared layout constants for the thread shell.
+- `src/updates/`: desktop app update checks, download state, and restart helpers.
 - `src/components/thread/`: chat workspace, thread views, composer, sidebar, and settings UI.
 - `src/components/ui/`: reusable shadcn-style primitives.
 
@@ -50,3 +51,25 @@ Build a desktop package:
 ```sh
 corepack pnpm tauri:build
 ```
+
+## Desktop Release Updates
+
+The desktop updater reads release metadata from:
+
+```txt
+https://github.com/Maidang1/agent-harness/releases/latest/download/latest.json
+```
+
+Updater signing keys were generated locally at:
+
+- Private key: `~/.tauri/book-agent.key`
+- Public key: `~/.tauri/book-agent.key.pub`
+- Password: `~/.tauri/book-agent.key.password`
+
+Set these GitHub Actions secrets before publishing a release:
+
+- `TAURI_SIGNING_PRIVATE_KEY`: contents of `~/.tauri/book-agent.key`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: contents of `~/.tauri/book-agent.key.password`
+
+Before tagging a release, keep `package.json`, `src-tauri/Cargo.toml`, and
+`src-tauri/tauri.conf.json` on the same SemVer version.

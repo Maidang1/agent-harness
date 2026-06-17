@@ -20,6 +20,7 @@ describe('source structure', () => {
       'model-clients/openrouter-client.ts',
       'reading/reading-store.ts',
       'reading/reading-workspace.ts',
+      'updates/app-updates.ts',
       'weread/weread-data.ts',
       'weread/weread-store.ts',
       'recommendations/book-cards.ts',

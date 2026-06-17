@@ -7,6 +7,7 @@ import {
 } from '../../chat/chat-store'
 import { type UserMemoryView } from '../../memory/memory-data'
 import { type ReadingWorkspace } from '../../reading/reading-workspace'
+import { type AppUpdateState } from '../../updates/app-updates'
 import { createRecommendationStats } from '../../recommendations/recommendation-stats'
 import { type WereadSnapshot } from '../../weread/weread-data'
 import {
@@ -18,7 +19,7 @@ import { Composer } from './Composer'
 import { EmptyThread } from './EmptyThread'
 import { MainHeader } from './MainHeader'
 import { RecommendationStatsPanel } from './RecommendationStatsPanel'
-import { SettingsModal } from './SettingsModal'
+import { SettingsModal, type SettingsTab } from './SettingsModal'
 import { ThreadMessages } from './ThreadMessages'
 
 export type ThreadProps = {
@@ -27,10 +28,15 @@ export type ThreadProps = {
   wereadSnapshot: WereadSnapshot
   readingWorkspace: ReadingWorkspace
   isWereadSyncing: boolean
+  appVersion: string
+  appUpdateState: AppUpdateState
   onClientConfigChange: (config: BookAgentClientConfig) => void
   onUserMemoryChange: (memory: UserMemoryView) => void
   onReadingWorkspaceChange: (workspace: ReadingWorkspace) => void
   onSyncWeread: () => void
+  onCheckForAppUpdate: () => void
+  onInstallAppUpdate: () => void
+  onRestartAfterUpdate: () => void
   isModelConfigured: boolean
   chats: ChatSummary[]
   conversationSnapshots: ChatConversationSnapshot[]
@@ -46,10 +52,15 @@ export const Thread = ({
   wereadSnapshot,
   readingWorkspace,
   isWereadSyncing,
+  appVersion,
+  appUpdateState,
   onClientConfigChange,
   onUserMemoryChange,
   onReadingWorkspaceChange,
   onSyncWeread,
+  onCheckForAppUpdate,
+  onInstallAppUpdate,
+  onRestartAfterUpdate,
   isModelConfigured,
   chats,
   conversationSnapshots,
@@ -59,6 +70,8 @@ export const Thread = ({
   onDeleteChat,
 }: ThreadProps) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] =
+    useState<SettingsTab>('api')
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false)
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false)
@@ -89,6 +102,10 @@ export const Thread = ({
 
   const toggleSidebar = () => setIsSidebarCollapsed((value) => !value)
   const toggleStatsPanel = () => setIsStatsPanelOpen((value) => !value)
+  const openConfig = (tab: SettingsTab = 'api') => {
+    setSettingsInitialTab(tab)
+    setIsConfigOpen(true)
+  }
 
   return (
     <ThreadPrimitive.Root className={THREAD_ROOT_CLASS_NAME}>
@@ -99,7 +116,7 @@ export const Thread = ({
         onSelectChat={onSelectChat}
         onDeleteChat={onDeleteChat}
         isConfigOpen={isConfigOpen}
-        onOpenConfig={() => setIsConfigOpen(true)}
+        onOpenConfig={() => openConfig()}
         isCollapsed={isSidebarCollapsed}
         onToggle={toggleSidebar}
       />
@@ -118,8 +135,10 @@ export const Thread = ({
           isModelConfigured={isModelConfigured}
           isSidebarCollapsed={isSidebarCollapsed}
           isStatsPanelOpen={isStatsPanelOpen}
+          appUpdateState={appUpdateState}
           onToggleSidebar={toggleSidebar}
-          onOpenConfig={() => setIsConfigOpen(true)}
+          onOpenConfig={() => openConfig()}
+          onOpenAppSettings={() => openConfig('app')}
           onToggleStatsPanel={toggleStatsPanel}
           onOpenStatsDialog={() => setIsStatsDialogOpen(true)}
         />
@@ -156,10 +175,17 @@ export const Thread = ({
 
       {isConfigOpen ? (
         <SettingsModal
+          key={settingsInitialTab}
+          initialTab={settingsInitialTab}
           config={clientConfig}
           userMemory={userMemory}
+          appVersion={appVersion}
+          appUpdateState={appUpdateState}
           onChange={onClientConfigChange}
           onMemoryChange={onUserMemoryChange}
+          onCheckForAppUpdate={onCheckForAppUpdate}
+          onInstallAppUpdate={onInstallAppUpdate}
+          onRestartAfterUpdate={onRestartAfterUpdate}
           onClose={() => setIsConfigOpen(false)}
         />
       ) : null}

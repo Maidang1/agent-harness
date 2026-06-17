@@ -6,12 +6,15 @@ import {
   type FormEvent,
 } from 'react'
 import {
+  AppWindow,
   Brain,
   ChevronDown,
+  Download,
   Info,
   KeyRound,
   LoaderCircle,
   RefreshCw,
+  RotateCcw,
   UserRound,
 } from 'lucide-react'
 import {
@@ -85,25 +88,38 @@ import {
   saveUserMemory,
 } from '../../memory/memory-store'
 import { createSettingsClientConfig } from '../../config/settings-config'
+import { type AppUpdateState } from '../../updates/app-updates'
 
-type SettingsTab = 'api' | 'persona' | 'memory'
+export type SettingsTab = 'api' | 'persona' | 'memory' | 'app'
 
 type SettingsModalProps = {
+  initialTab?: SettingsTab
   config: BookAgentClientConfig
   userMemory: UserMemoryView
+  appVersion: string
+  appUpdateState: AppUpdateState
   onChange: (config: BookAgentClientConfig) => void
   onMemoryChange: (memory: UserMemoryView) => void
+  onCheckForAppUpdate: () => void
+  onInstallAppUpdate: () => void
+  onRestartAfterUpdate: () => void
   onClose: () => void
 }
 
 export const SettingsModal = ({
+  initialTab = 'api',
   config,
   userMemory,
+  appVersion,
+  appUpdateState,
   onChange,
   onMemoryChange,
+  onCheckForAppUpdate,
+  onInstallAppUpdate,
+  onRestartAfterUpdate,
   onClose,
 }: SettingsModalProps) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('api')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
   const [provider, setProvider] = useState<BookAgentProvider>(config.provider)
   const [apiKey, setApiKey] = useState(config.openrouter.apiKey)
   const [codexModel, setCodexModel] = useState(config.codex.model)
@@ -301,6 +317,10 @@ export const SettingsModal = ({
                 <Brain data-icon="inline-start" />
                 记忆
               </TabsTrigger>
+              <TabsTrigger value="app" className="h-9 flex-none justify-start rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-[0_1px_10px_-7px_var(--glass-shadow)]">
+                <AppWindow data-icon="inline-start" />
+                应用
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="api" className="m-0 min-h-0 overflow-y-auto p-5">
@@ -350,18 +370,30 @@ export const SettingsModal = ({
                 onClearMemory={handleClearMemory}
               />
             </TabsContent>
+
+            <TabsContent value="app" className="m-0 min-h-0 overflow-y-auto p-5">
+              <AppSettingsPanel
+                appVersion={appVersion}
+                appUpdateState={appUpdateState}
+                onCheckForAppUpdate={onCheckForAppUpdate}
+                onInstallAppUpdate={onInstallAppUpdate}
+                onRestartAfterUpdate={onRestartAfterUpdate}
+              />
+            </TabsContent>
           </Tabs>
 
           <DialogFooter className="m-0 shrink-0 rounded-none border-t border-hairline bg-muted/35 p-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              取消
+              {activeTab === 'app' ? '关闭' : '取消'}
             </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? (
-                <LoaderCircle className="animate-spin" data-icon="inline-start" />
-              ) : null}
-              保存
-            </Button>
+            {activeTab === 'app' ? null : (
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? (
+                  <LoaderCircle className="animate-spin" data-icon="inline-start" />
+                ) : null}
+                保存
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
@@ -753,6 +785,144 @@ const MemorySettingsPanel = ({
   )
 }
 
+type AppSettingsPanelProps = {
+  appVersion: string
+  appUpdateState: AppUpdateState
+  onCheckForAppUpdate: () => void
+  onInstallAppUpdate: () => void
+  onRestartAfterUpdate: () => void
+}
+
+const AppSettingsPanel = ({
+  appVersion,
+  appUpdateState,
+  onCheckForAppUpdate,
+  onInstallAppUpdate,
+  onRestartAfterUpdate,
+}: AppSettingsPanelProps) => {
+  const isChecking = appUpdateState.phase === 'checking'
+  const isDownloading = appUpdateState.phase === 'downloading'
+  const canInstall = appUpdateState.phase === 'available'
+  const canRestart = appUpdateState.phase === 'readyToRestart'
+
+  return (
+    <FieldGroup>
+      <Field>
+        <FieldLabel>当前版本</FieldLabel>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-glass-edge bg-card/35 px-3 py-2.5">
+          <span className="font-mono text-sm">{appVersion || '读取中'}</span>
+          <Badge variant="secondary">JIAJIA</Badge>
+        </div>
+      </Field>
+
+      <Field>
+        <FieldLabel>自动更新</FieldLabel>
+        <div className="rounded-xl border border-glass-edge bg-card/35 p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={appUpdateState.phase === 'error' ? 'destructive' : 'secondary'}>
+                  {appUpdateStatusLabel(appUpdateState)}
+                </Badge>
+                {appUpdateState.checkedAt ? (
+                  <span className="text-xs text-muted-foreground">
+                    {formatAppUpdateTimestamp(appUpdateState.checkedAt)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {appUpdateState.message || '启动后会自动检测一次，也可以手动检测。'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCheckForAppUpdate}
+              disabled={isChecking || isDownloading}
+            >
+              {isChecking ? (
+                <LoaderCircle className="animate-spin" data-icon="inline-start" />
+              ) : (
+                <RefreshCw data-icon="inline-start" />
+              )}
+              检测更新
+            </Button>
+          </div>
+
+          {appUpdateState.update ? (
+            <div className="mt-4 rounded-lg border border-hairline bg-background/40 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    版本 {appUpdateState.update.version}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    当前版本 {appUpdateState.update.currentVersion}
+                    {appUpdateState.update.date
+                      ? ` · ${formatAppUpdateDate(appUpdateState.update.date)}`
+                      : ''}
+                  </p>
+                </div>
+                {canRestart ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onRestartAfterUpdate}
+                  >
+                    <RotateCcw data-icon="inline-start" />
+                    重启应用
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onInstallAppUpdate}
+                    disabled={!canInstall}
+                  >
+                    {isDownloading ? (
+                      <LoaderCircle className="animate-spin" data-icon="inline-start" />
+                    ) : (
+                      <Download data-icon="inline-start" />
+                    )}
+                    下载并安装
+                  </Button>
+                )}
+              </div>
+
+              {appUpdateState.update.body ? (
+                <p className="mt-3 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                  {appUpdateState.update.body}
+                </p>
+              ) : null}
+
+              {isDownloading ? (
+                <div className="mt-4 space-y-1.5">
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-system-accent transition-[width]"
+                      style={{ width: `${appUpdateState.progress ?? 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    {appUpdateState.progress ?? 0}%
+                    {appUpdateState.contentLength
+                      ? ` · ${formatBytes(appUpdateState.downloadedBytes ?? 0)} / ${formatBytes(appUpdateState.contentLength)}`
+                      : ''}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        <FieldDescription>
+          更新包由 GitHub Releases 提供，并由 Tauri updater 验签后安装。
+        </FieldDescription>
+      </Field>
+    </FieldGroup>
+  )
+}
+
 type LearningRecordCollapsibleProps = {
   record: MemoryLearningRecord
 }
@@ -899,6 +1069,64 @@ const formatLearningTimestamp = (value: number) =>
     hour: '2-digit',
     minute: '2-digit',
   }).format(value)
+
+const appUpdateStatusLabel = (state: AppUpdateState) => {
+  switch (state.phase) {
+    case 'idle':
+      return '等待检测'
+    case 'checking':
+      return '检测中'
+    case 'current':
+      return '已是最新'
+    case 'available':
+      return '发现更新'
+    case 'downloading':
+      return '下载中'
+    case 'readyToRestart':
+      return '等待重启'
+    case 'error':
+      return '检测失败'
+  }
+}
+
+const formatAppUpdateTimestamp = (value: number) =>
+  new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(value)
+
+const formatAppUpdateDate = (value: string) => {
+  const timestamp = Date.parse(value)
+
+  if (!Number.isFinite(timestamp)) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(timestamp)
+}
+
+const formatBytes = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0 B'
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB']
+  let unitIndex = 0
+  let normalizedValue = value
+
+  while (normalizedValue >= 1024 && unitIndex < units.length - 1) {
+    normalizedValue /= 1024
+    unitIndex += 1
+  }
+
+  return `${normalizedValue.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
 
 const formatError = (error: unknown) =>
   error instanceof Error

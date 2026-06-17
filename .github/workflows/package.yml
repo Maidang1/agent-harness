@@ -82,6 +82,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ matrix.signing_identity }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
@@ -92,5 +94,7 @@ jobs:
           prerelease: false
           retryAttempts: 3
           releaseAssetNamePattern: book-agent-${{ env.RELEASE_TAG }}-[platform]-[arch][setup][ext]
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
           uploadWorkflowArtifacts: true
           workflowArtifactNamePattern: book-agent-[platform]-[arch]-[bundle]

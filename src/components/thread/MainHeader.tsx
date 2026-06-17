@@ -2,6 +2,8 @@ import {
   ChartNoAxesColumnIncreasing,
   ChevronDown,
   Circle,
+  Download,
+  LoaderCircle,
   PanelLeftOpen,
   Settings,
   Sparkles,
@@ -16,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { type BookAgentProvider } from '../../config/client-config'
+import { type AppUpdateState } from '../../updates/app-updates'
 
 type MainHeaderProps = {
   title: string
@@ -24,8 +27,10 @@ type MainHeaderProps = {
   isModelConfigured: boolean
   isSidebarCollapsed: boolean
   isStatsPanelOpen: boolean
+  appUpdateState: AppUpdateState
   onToggleSidebar: () => void
   onOpenConfig: () => void
+  onOpenAppSettings: () => void
   onToggleStatsPanel: () => void
   onOpenStatsDialog: () => void
 }
@@ -46,109 +51,145 @@ export const MainHeader = ({
   isModelConfigured,
   isSidebarCollapsed,
   isStatsPanelOpen,
+  appUpdateState,
   onToggleSidebar,
   onOpenConfig,
+  onOpenAppSettings,
   onToggleStatsPanel,
   onOpenStatsDialog,
-}: MainHeaderProps) => (
-  <header
-    data-tauri-drag-region
-    className={cn(
-      MAIN_HEADER_CLASS_NAME,
-      isSidebarCollapsed && COLLAPSED_MAIN_HEADER_CLASS_NAME,
-    )}
-  >
-    <div className="flex min-w-0 items-center gap-2.5">
-      {isSidebarCollapsed ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="展开侧边栏"
-          title="展开侧边栏"
-          onClick={onToggleSidebar}
-          className={COLLAPSED_SIDEBAR_TOGGLE_CLASS_NAME}
-        >
-          <PanelLeftOpen className={SIDEBAR_TOGGLE_ICON_CLASS_NAME} />
-        </Button>
-      ) : null}
-      <div className="min-w-0">
-        <h1 className={MAIN_HEADER_TITLE_CLASS_NAME}>{title}</h1>
+}: MainHeaderProps) => {
+  const updateLabel = getUpdateHeaderLabel(appUpdateState)
+
+  return (
+    <header
+      data-tauri-drag-region
+      className={cn(
+        MAIN_HEADER_CLASS_NAME,
+        isSidebarCollapsed && COLLAPSED_MAIN_HEADER_CLASS_NAME,
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        {isSidebarCollapsed ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="展开侧边栏"
+            title="展开侧边栏"
+            onClick={onToggleSidebar}
+            className={COLLAPSED_SIDEBAR_TOGGLE_CLASS_NAME}
+          >
+            <PanelLeftOpen className={SIDEBAR_TOGGLE_ICON_CLASS_NAME} />
+          </Button>
+        ) : null}
+        <div className="min-w-0">
+          <h1 className={MAIN_HEADER_TITLE_CLASS_NAME}>{title}</h1>
+        </div>
       </div>
-    </div>
 
-    <div className="flex items-center gap-1.5">
-      {isModelConfigured ? (
+      <div className="flex items-center gap-1.5">
+        {updateLabel ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onOpenAppSettings}
+            className="h-7 gap-1.5 rounded-lg px-2 text-[11px]"
+          >
+            {appUpdateState.phase === 'downloading' ? (
+              <LoaderCircle className="size-3 animate-spin" data-icon="inline-start" />
+            ) : (
+              <Download className="size-3" data-icon="inline-start" />
+            )}
+            <span className="hidden sm:inline">{updateLabel}</span>
+          </Button>
+        ) : null}
+
+        {isModelConfigured ? (
+          <button
+            type="button"
+            onClick={onOpenConfig}
+            className="hidden h-7 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/50 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground sm:flex"
+          >
+            <Circle className="size-2 fill-system-green text-system-green" />
+            <span className="max-w-32 truncate">
+              {formatProviderName(provider)} 已配置
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenConfig}
+            className="hidden h-7 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/50 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground sm:flex"
+          >
+            <Circle className="size-2 fill-system-amber text-system-amber" />
+            <span>模型待配置</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onOpenConfig}
-          className="hidden h-7 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/50 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground sm:flex"
+          className="hidden h-7 max-w-48 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/45 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground md:flex"
         >
-          <Circle className="size-2 fill-system-green text-system-green" />
-          <span className="max-w-32 truncate">
-            {formatProviderName(provider)} 已配置
-          </span>
+          <Sparkles className="size-3 text-system-accent" />
+          <span className="truncate">{formatModelName(model)}</span>
+          <ChevronDown className="size-3" />
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={onOpenConfig}
-          className="hidden h-7 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/50 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground sm:flex"
-        >
-          <Circle className="size-2 fill-system-amber text-system-amber" />
-          <span>模型待配置</span>
-        </button>
-      )}
 
-      <button
-        type="button"
-        onClick={onOpenConfig}
-        className="hidden h-7 max-w-48 items-center gap-1.5 rounded-lg border border-glass-edge bg-card/45 px-2 text-[11px] text-muted-foreground shadow-[0_1px_10px_-8px_var(--glass-shadow)] transition-colors hover:bg-card/80 hover:text-foreground md:flex"
-      >
-        <Sparkles className="size-3 text-system-accent" />
-        <span className="truncate">{formatModelName(model)}</span>
-        <ChevronDown className="size-3" />
-      </button>
-
-      {isModelConfigured ? null : (
+        {isModelConfigured ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="设置"
+            title="设置"
+            onClick={onOpenConfig}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="size-3" />
+          </Button>
+        )}
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="设置"
-          title="设置"
-          onClick={onOpenConfig}
-          className="text-muted-foreground hover:text-foreground"
+          aria-label="打开统计面板"
+          title="打开统计面板"
+          onClick={onOpenStatsDialog}
+          className="text-muted-foreground hover:text-foreground md:hidden"
         >
-          <Settings className="size-3" />
+          <ChartNoAxesColumnIncreasing className="size-3" />
         </Button>
-      )}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label="打开统计面板"
-        title="打开统计面板"
-        onClick={onOpenStatsDialog}
-        className="text-muted-foreground hover:text-foreground md:hidden"
-      >
-        <ChartNoAxesColumnIncreasing className="size-3" />
-      </Button>
-      <Button
-        type="button"
-        variant={isStatsPanelOpen ? 'secondary' : 'ghost'}
-        size="icon-sm"
-        aria-pressed={isStatsPanelOpen}
-        aria-label={isStatsPanelOpen ? '关闭统计面板' : '打开统计面板'}
-        title={isStatsPanelOpen ? '关闭统计面板' : '打开统计面板'}
-        onClick={onToggleStatsPanel}
-        className={cn(
-          'hidden md:inline-flex',
-          !isStatsPanelOpen && 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        <ChartNoAxesColumnIncreasing className="size-3" />
-      </Button>
-    </div>
-  </header>
-)
+        <Button
+          type="button"
+          variant={isStatsPanelOpen ? 'secondary' : 'ghost'}
+          size="icon-sm"
+          aria-pressed={isStatsPanelOpen}
+          aria-label={isStatsPanelOpen ? '关闭统计面板' : '打开统计面板'}
+          title={isStatsPanelOpen ? '关闭统计面板' : '打开统计面板'}
+          onClick={onToggleStatsPanel}
+          className={cn(
+            'hidden md:inline-flex',
+            !isStatsPanelOpen && 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <ChartNoAxesColumnIncreasing className="size-3" />
+        </Button>
+      </div>
+    </header>
+  )
+}
+
+const getUpdateHeaderLabel = (state: AppUpdateState) => {
+  switch (state.phase) {
+    case 'available':
+      return '更新可用'
+    case 'downloading':
+      return '正在更新'
+    case 'readyToRestart':
+      return '重启更新'
+    default:
+      return ''
+  }
+}
