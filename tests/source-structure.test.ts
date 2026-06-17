@@ -13,6 +13,7 @@ describe('source structure', () => {
       'chat/sidebar-data.ts',
       'chat/text-content.ts',
       'layout/sidebar-layout.ts',
+      'layout/resizable-panels.ts',
       'memory/memory-data.ts',
       'memory/memory-learning-record.ts',
       'memory/memory-store.ts',

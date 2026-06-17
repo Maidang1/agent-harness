@@ -1,4 +1,10 @@
-import { useMemo, useState } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react'
 import { ThreadPrimitive } from '@assistant-ui/react'
 import { type BookAgentClientConfig } from '../../config/client-config'
 import {
@@ -14,6 +20,18 @@ import {
   MAIN_WORKSPACE_CLASS_NAME,
   THREAD_ROOT_CLASS_NAME,
 } from '../../layout/sidebar-layout'
+import {
+  INSPECTOR_PANEL_WIDTH,
+  INSPECTOR_WIDTH_STORAGE_KEY,
+  SIDEBAR_PANEL_WIDTH,
+  SIDEBAR_WIDTH_STORAGE_KEY,
+  calculateDraggedPanelWidth,
+  clampPanelWidth,
+  readStoredPanelWidth,
+  writeStoredPanelWidth,
+  type PanelWidthBounds,
+  type ResizeEdge,
+} from '../../layout/resizable-panels'
 import { ChatSidebar } from './ChatSidebar'
 import { Composer } from './Composer'
 import { EmptyThread } from './EmptyThread'
@@ -72,6 +90,23 @@ export const Thread = ({
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] =
     useState<SettingsTab>('api')
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    readStoredPanelWidth(
+      getLayoutStorage(),
+      SIDEBAR_WIDTH_STORAGE_KEY,
+      SIDEBAR_PANEL_WIDTH,
+    ),
+  )
+  const [inspectorWidth, setInspectorWidth] = useState(() =>
+    readStoredPanelWidth(
+      getLayoutStorage(),
+      INSPECTOR_WIDTH_STORAGE_KEY,
+      INSPECTOR_PANEL_WIDTH,
+    ),
+  )
+  const [resizingPanel, setResizingPanel] = useState<ResizablePanelId | null>(
+    null,
+  )
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false)
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false)
@@ -106,6 +141,85 @@ export const Thread = ({
     setSettingsInitialTab(tab)
     setIsConfigOpen(true)
   }
+  const startPanelResize = useCallback(
+    ({
+      event,
+      panel,
+      edge,
+      startWidth,
+      bounds,
+      storageKey,
+    }: StartPanelResizeInput) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) {
+        return
+      }
+
+      event.preventDefault()
+
+      const storage = getLayoutStorage()
+      const startClientX = event.clientX
+      const setWidth =
+        panel === 'sidebar' ? setSidebarWidth : setInspectorWidth
+
+      setResizingPanel(panel)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+
+      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+        const nextWidth = calculateDraggedPanelWidth({
+          edge,
+          startWidth,
+          startClientX,
+          currentClientX: moveEvent.clientX,
+          bounds,
+        })
+
+        setWidth(nextWidth)
+        writeStoredPanelWidth(storage, storageKey, nextWidth, bounds)
+      }
+
+      const stopResize = () => {
+        setResizingPanel(null)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('pointerup', stopResize)
+        window.removeEventListener('pointercancel', stopResize)
+      }
+
+      window.addEventListener('pointermove', handlePointerMove)
+      window.addEventListener('pointerup', stopResize)
+      window.addEventListener('pointercancel', stopResize)
+    },
+    [],
+  )
+  const resizePanelByKeyboard = useCallback(
+    ({
+      event,
+      panel,
+      edge,
+      width,
+      bounds,
+      storageKey,
+    }: KeyboardPanelResizeInput) => {
+      const keyDelta = resizeKeyDelta(event.key)
+
+      if (keyDelta === 0) {
+        return
+      }
+
+      event.preventDefault()
+
+      const direction = edge === 'right' ? 1 : -1
+      const nextWidth = clampPanelWidth(width + keyDelta * direction, bounds)
+      const setWidth =
+        panel === 'sidebar' ? setSidebarWidth : setInspectorWidth
+
+      setWidth(nextWidth)
+      writeStoredPanelWidth(getLayoutStorage(), storageKey, nextWidth, bounds)
+    },
+    [],
+  )
 
   return (
     <ThreadPrimitive.Root className={THREAD_ROOT_CLASS_NAME}>
@@ -118,6 +232,30 @@ export const Thread = ({
         isConfigOpen={isConfigOpen}
         onOpenConfig={() => openConfig()}
         isCollapsed={isSidebarCollapsed}
+        width={sidebarWidth}
+        minWidth={SIDEBAR_PANEL_WIDTH.min}
+        maxWidth={SIDEBAR_PANEL_WIDTH.max}
+        isResizing={resizingPanel === 'sidebar'}
+        onResizePointerDown={(event) =>
+          startPanelResize({
+            event,
+            panel: 'sidebar',
+            edge: 'right',
+            startWidth: sidebarWidth,
+            bounds: SIDEBAR_PANEL_WIDTH,
+            storageKey: SIDEBAR_WIDTH_STORAGE_KEY,
+          })
+        }
+        onResizeKeyDown={(event) =>
+          resizePanelByKeyboard({
+            event,
+            panel: 'sidebar',
+            edge: 'right',
+            width: sidebarWidth,
+            bounds: SIDEBAR_PANEL_WIDTH,
+            storageKey: SIDEBAR_WIDTH_STORAGE_KEY,
+          })
+        }
         onToggle={toggleSidebar}
       />
 
@@ -167,8 +305,32 @@ export const Thread = ({
         isWereadSyncing={isWereadSyncing}
         isDesktopOpen={isStatsPanelOpen}
         isDialogOpen={isStatsDialogOpen}
+        desktopWidth={inspectorWidth}
+        minDesktopWidth={INSPECTOR_PANEL_WIDTH.min}
+        maxDesktopWidth={INSPECTOR_PANEL_WIDTH.max}
+        isDesktopResizing={resizingPanel === 'inspector'}
         onSyncWeread={onSyncWeread}
         onReadingWorkspaceChange={onReadingWorkspaceChange}
+        onDesktopResizePointerDown={(event) =>
+          startPanelResize({
+            event,
+            panel: 'inspector',
+            edge: 'left',
+            startWidth: inspectorWidth,
+            bounds: INSPECTOR_PANEL_WIDTH,
+            storageKey: INSPECTOR_WIDTH_STORAGE_KEY,
+          })
+        }
+        onDesktopResizeKeyDown={(event) =>
+          resizePanelByKeyboard({
+            event,
+            panel: 'inspector',
+            edge: 'left',
+            width: inspectorWidth,
+            bounds: INSPECTOR_PANEL_WIDTH,
+            storageKey: INSPECTOR_WIDTH_STORAGE_KEY,
+          })
+        }
         onCloseDesktop={() => setIsStatsPanelOpen(false)}
         onDialogOpenChange={setIsStatsDialogOpen}
       />
@@ -191,4 +353,39 @@ export const Thread = ({
       ) : null}
     </ThreadPrimitive.Root>
   )
+}
+
+type ResizablePanelId = 'sidebar' | 'inspector'
+
+type StartPanelResizeInput = {
+  event: PointerEvent<HTMLDivElement>
+  panel: ResizablePanelId
+  edge: ResizeEdge
+  startWidth: number
+  bounds: PanelWidthBounds
+  storageKey: string
+}
+
+type KeyboardPanelResizeInput = {
+  event: KeyboardEvent<HTMLDivElement>
+  panel: ResizablePanelId
+  edge: ResizeEdge
+  width: number
+  bounds: PanelWidthBounds
+  storageKey: string
+}
+
+const getLayoutStorage = () =>
+  typeof window === 'undefined' ? undefined : window.localStorage
+
+const resizeKeyDelta = (key: string) => {
+  if (key === 'ArrowLeft') {
+    return -16
+  }
+
+  if (key === 'ArrowRight') {
+    return 16
+  }
+
+  return 0
 }
