@@ -1,8 +1,11 @@
 import {
   BookOpenText,
+  Brain,
+  CalendarDays,
   Leaf,
   Moon,
   Sparkles,
+  Target,
 } from 'lucide-react'
 import {
   Empty,
@@ -33,6 +36,24 @@ const examples = [
   },
 ]
 
+const taskPatterns = [
+  {
+    title: '书架补洞',
+    description: '从已读结构里找缺口，补一组下一步书单。',
+    icon: Target,
+  },
+  {
+    title: '划线复盘',
+    description: '把笔记整理成观点、证据、行动和延伸阅读。',
+    icon: Brain,
+  },
+  {
+    title: '本周计划',
+    description: '按精力、场景和时间排一周阅读节奏。',
+    icon: CalendarDays,
+  },
+]
+
 export const EmptyThread = () => (
   <Empty className="mx-auto min-h-[25rem] max-w-4xl items-start justify-center border-0 p-0 text-left">
     <EmptyHeader className="max-w-3xl items-start gap-3">
@@ -52,6 +73,29 @@ export const EmptyThread = () => (
     </EmptyHeader>
 
     <EmptyContent className="mt-4 max-w-3xl items-stretch gap-4">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {taskPatterns.map((pattern) => {
+          const Icon = pattern.icon
+
+          return (
+            <div
+              key={pattern.title}
+              className="rounded-xl border border-glass-edge bg-card/38 p-3 shadow-[0_14px_36px_-30px_var(--glass-shadow)]"
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-system-accent-soft text-system-accent">
+                  <Icon className="size-3.5" />
+                </span>
+                <h3 className="text-[12.5px] font-semibold">{pattern.title}</h3>
+              </div>
+              <p className="mt-2 text-[11.5px] leading-5 text-muted-foreground">
+                {pattern.description}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-glass-edge bg-card/52 shadow-[0_18px_46px_-36px_var(--glass-shadow)] backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
           <p className="text-[12px] font-medium text-muted-foreground">

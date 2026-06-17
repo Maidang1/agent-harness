@@ -1,4 +1,3 @@
-import { useRef, type RefObject } from 'react'
 import {
   ActionBarPrimitive,
   MessagePrimitive,
@@ -19,7 +18,6 @@ import {
   AvatarFallback,
 } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { gsap, shouldReduceMotion, useGSAP } from '@/lib/gsap'
 
 export const ThreadMessages = () => (
   <div className="mx-auto w-full max-w-4xl">
@@ -33,38 +31,9 @@ export const ThreadMessages = () => (
   </div>
 )
 
-const useMessageEntrance = (
-  messageRef: RefObject<HTMLElement | null>,
-  x: number,
-  dependencies: unknown[] = [],
-) => {
-  useGSAP(() => {
-    if (shouldReduceMotion() || !messageRef.current) {
-      return
-    }
-
-    gsap.from(messageRef.current, {
-      autoAlpha: 0,
-      x,
-      y: 6,
-      scale: 0.985,
-      duration: 0.22,
-      ease: 'power2.out',
-      clearProps: 'transform,opacity,visibility',
-    })
-  }, {
-    dependencies,
-    revertOnUpdate: dependencies.length > 0,
-  })
-}
-
 const UserMessage = () => {
-  const messageRef = useRef<HTMLDivElement>(null)
-
-  useMessageEntrance(messageRef, 10)
-
   return (
-    <MessagePrimitive.Root ref={messageRef} className="mb-4 flex justify-end">
+    <MessagePrimitive.Root className="mb-4 flex justify-end">
       <div className="max-w-2xl rounded-2xl rounded-br-md border border-glass-edge bg-accent/65 px-3.5 py-2 text-[13.5px] leading-7 shadow-[0_12px_30px_-26px_var(--glass-shadow)]">
         <MessagePrimitive.Content />
       </div>
@@ -80,12 +49,8 @@ const MarkdownText = () => (
 )
 
 const AssistantMessage = () => {
-  const messageRef = useRef<HTMLDivElement>(null)
-
-  useMessageEntrance(messageRef, -8)
-
   return (
-    <MessagePrimitive.Root ref={messageRef} className="group/msg mb-5 grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
+    <MessagePrimitive.Root className="group/msg mb-5 grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
       <Avatar size="sm" className="mt-0.5 size-8 rounded-xl">
         <AvatarFallback className="rounded-xl border border-glass-edge bg-system-accent-soft text-system-accent">
           <BookOpenText className="size-3" />
@@ -132,7 +97,6 @@ const AssistantMessage = () => {
 }
 
 const ThinkingIndicator = () => {
-  const thinkingRef = useRef<HTMLDivElement>(null)
   const isRunning = useAuiState((s) => s.thread.isRunning)
   const messageCount = useAuiState((s) => s.thread.messages.length)
   const lastMessage = useAuiState((s) => {
@@ -145,12 +109,10 @@ const ThinkingIndicator = () => {
     messageCount > 0 &&
     lastMessage?.role === 'user'
 
-  useMessageEntrance(thinkingRef, -8, [showThinking])
-
   if (!showThinking) return null
 
   return (
-    <div ref={thinkingRef} className="mb-5 grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
+    <div className="mb-5 grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
       <Avatar size="sm" className="mt-0.5 size-8 rounded-xl">
         <AvatarFallback className="rounded-xl border border-glass-edge bg-system-accent-soft text-system-accent">
           <BookOpenText className="size-3" />

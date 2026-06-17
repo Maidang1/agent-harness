@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ThreadPrimitive } from '@assistant-ui/react'
 import { type BookAgentClientConfig } from '../../config/client-config'
 import {
@@ -20,7 +20,6 @@ import { MainHeader } from './MainHeader'
 import { RecommendationStatsPanel } from './RecommendationStatsPanel'
 import { SettingsModal } from './SettingsModal'
 import { ThreadMessages } from './ThreadMessages'
-import { useThreadMotion } from './use-thread-motion'
 
 export type ThreadProps = {
   clientConfig: BookAgentClientConfig
@@ -59,7 +58,6 @@ export const Thread = ({
   onSelectChat,
   onDeleteChat,
 }: ThreadProps) => {
-  const threadRootRef = useRef<HTMLDivElement>(null)
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false)
@@ -92,15 +90,8 @@ export const Thread = ({
   const toggleSidebar = () => setIsSidebarCollapsed((value) => !value)
   const toggleStatsPanel = () => setIsStatsPanelOpen((value) => !value)
 
-  useThreadMotion({
-    rootRef: threadRootRef,
-    activeChatId,
-    isSidebarCollapsed,
-    isStatsPanelOpen,
-  })
-
   return (
-    <ThreadPrimitive.Root ref={threadRootRef} className={THREAD_ROOT_CLASS_NAME}>
+    <ThreadPrimitive.Root className={THREAD_ROOT_CLASS_NAME}>
       <ChatSidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -115,8 +106,6 @@ export const Thread = ({
 
       <main
         className={MAIN_WORKSPACE_CLASS_NAME}
-        data-thread-main
-        data-thread-motion="intro"
       >
         <MainHeader
           title={headerTitle}
@@ -137,7 +126,6 @@ export const Thread = ({
 
         <ThreadPrimitive.Viewport
           className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-7 md:px-10"
-          data-thread-viewport
         >
           <ThreadPrimitive.Empty>
             <EmptyThread />

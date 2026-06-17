@@ -1,4 +1,5 @@
 import {
+  MessageCircle,
   PanelLeftClose,
   Settings,
   SquarePen,
@@ -45,14 +46,13 @@ export const ChatSidebar = ({
 }: ChatSidebarProps) => (
   <aside
     data-thread-sidebar
-    data-thread-motion="intro"
     className={cn(
       SIDEBAR_PANEL_CLASS_NAME,
       isCollapsed && 'w-0 border-r-0',
     )}
     aria-hidden={isCollapsed}
   >
-    <div className="flex h-full w-72 shrink-0 flex-col" data-sidebar-inner>
+    <div className="flex h-full w-72 shrink-0 flex-col">
       <div
         data-tauri-drag-region
         className={cn(SIDEBAR_TITLEBAR_CLASS_NAME, 'justify-end')}
@@ -91,9 +91,14 @@ export const ChatSidebar = ({
           <div className="flex flex-col gap-5">
             {groupChats(chats).map((group) => (
               <section key={group.label} className="flex min-w-0 flex-col gap-1">
-                <p className="px-2 text-[10.5px] font-semibold text-muted-foreground">
-                  {group.label}
-                </p>
+                <div className="flex items-center justify-between gap-3 px-2">
+                  <p className="text-[10.5px] font-semibold text-muted-foreground">
+                    {group.label}
+                  </p>
+                  <span className="text-[10px] tabular-nums text-muted-foreground/70">
+                    {group.chats.length}
+                  </span>
+                </div>
                 <div className="flex flex-col gap-1">
                   {group.chats.map((chat) => (
                     <ChatRow
@@ -156,22 +161,36 @@ const ChatRow = ({
 }: ChatRowProps) => (
   <div
     className={cn(
-      'group relative rounded-lg transition-colors',
+      'group relative rounded-xl transition-colors',
       isActive && 'bg-sidebar-accent/75 shadow-[inset_0_0_0_1px_var(--glass-edge)]',
     )}
   >
     <Button
       type="button"
       variant="ghost"
-      className="h-8 w-full min-w-0 justify-start gap-2 rounded-lg px-2 pr-9 text-[12px] hover:bg-card/45"
+      className="h-11 w-full min-w-0 justify-start gap-2.5 rounded-xl px-2 pr-9 text-[12px] hover:bg-card/45"
       onClick={() => onSelectChat(chat.id)}
     >
-      <span className={cn(
-        'size-1.5 shrink-0 rounded-full shadow-[0_0_0_3px_color-mix(in_oklch,currentColor_14%,transparent)]',
-        isActive ? 'bg-system-accent' : 'bg-muted-foreground',
-      )} />
-      <span className={cn('truncate text-left', isActive && 'font-medium text-sidebar-accent-foreground')}>
-        {chat.title}
+      <span
+        className={cn(
+          'flex size-6 shrink-0 items-center justify-center rounded-lg border border-hairline bg-background/35',
+          isActive ? 'text-system-accent' : 'text-muted-foreground',
+        )}
+      >
+        <MessageCircle className="size-3" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+        <span
+          className={cn(
+            'max-w-full truncate text-left',
+            isActive && 'font-medium text-sidebar-accent-foreground',
+          )}
+        >
+          {chat.title}
+        </span>
+        <span className="text-[10.5px] leading-none text-muted-foreground">
+          {formatChatTimeLabel(chat.updatedAt)}
+        </span>
       </span>
     </Button>
     <Button
@@ -227,3 +246,24 @@ const isSameDay = (left: Date, right: Date) =>
   left.getFullYear() === right.getFullYear() &&
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate()
+
+const formatChatTimeLabel = (timestamp: number) => {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    return '刚刚更新'
+  }
+
+  const date = new Date(timestamp)
+  const now = new Date()
+
+  if (isSameDay(date, now)) {
+    return new Intl.DateTimeFormat('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
