@@ -93,8 +93,5 @@ jobs:
           releaseDraft: false
           prerelease: false
           retryAttempts: 3
-          releaseAssetNamePattern: book-agent-${{ env.RELEASE_TAG }}-[platform]-[arch][setup][ext]
-          uploadUpdaterJson: true
-          uploadUpdaterSignatures: true
-          uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: book-agent-[platform]-[arch]-[bundle]
+          assetNamePattern: book-agent-${{ env.RELEASE_TAG }}-[platform]-[arch][setup][ext]
+          includeUpdaterJson: true

@@ -47,7 +47,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0NEM0REUxNERBRUIzRkUKUldUK3M2NU40VTFNcFA0ajM1dklHMmdJbkJlcU91bGcvd0ZQM1REUjFmTU1PZXoybHZFQXlHNEIK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM2QUNFOUZDQTM4NUVBOTAKUldTUTZvV2ovT21zeGxOcGR0ZktDa0VpSEJNbUNzK0dac25KRkUvQU02Mk5naXVybFJFY25KUk8K",
       "endpoints": [
         "https://github.com/Maidang1/agent-harness/releases/latest/download/latest.json"
       ],
