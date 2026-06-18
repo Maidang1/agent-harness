@@ -147,7 +147,11 @@ export class BookRecommendationAgent extends HttpAgent {
   }
 
   private queueMemoryGeneration(prompt: string) {
-    if (!prompt) {
+    if (
+      !prompt ||
+      !this.clientConfig.memory.enabled ||
+      !this.clientConfig.memory.autoGenerateFromPrompt
+    ) {
       return
     }
 

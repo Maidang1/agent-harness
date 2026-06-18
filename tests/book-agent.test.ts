@@ -97,4 +97,24 @@ describe('book recommendation agent', () => {
       ],
     )
   })
+
+  test('does not learn memory when automatic prompt learning is disabled', async () => {
+    const config = createDefaultClientConfig()
+    config.provider = 'codex'
+    config.memory.autoGenerateFromPrompt = false
+    let didGenerateMemory = false
+    const agent = new BookRecommendationAgent(config, {
+      streamCodexChat: async function* (): AsyncGenerator<CodexStreamEvent> {
+        yield { type: 'content', delta: '推荐《原则》。' }
+      },
+      generateUserMemoryFromPrompt: async () => {
+        didGenerateMemory = true
+        return createDefaultUserMemory()
+      },
+    })
+
+    await collectRunEvents(agent)
+
+    assert.equal(didGenerateMemory, false)
+  })
 })
